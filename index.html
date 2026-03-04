@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- ================================================
+       SEO Phase 4 – Title & Meta ottimizzati Local Pack
+  ================================================ -->
+  <title>Pizzeria Da Rocco – Pizza a Domicilio Quarrata (51039) | Ordina Online</title>
+  <meta name="description" content="La migliore pizza a domicilio e asporto a Quarrata (CAP 51039). Ordina direttamente online: niente app, niente commissioni. Consegna rapida o ritiro in negozio. Aperta anche stasera!" />
+  <meta name="keywords"    content="pizzeria Quarrata, pizza a domicilio Quarrata, pizza asporto 51039, pizzeria aperta stasera Quarrata, migliore pizzeria Quarrata, pizza delivery Quarrata Pistoia" />
+  <meta name="robots"      content="index, follow" />
+  <link rel="canonical"    href="https://www.pizzeriadarocco.it/" />
+
+  <!-- Open Graph -->
+  <meta property="og:title"       content="Pizzeria Da Rocco – Pizza a Domicilio Quarrata" />
+  <meta property="og:description" content="Ordina la tua pizza direttamente da noi. Risparmia sulle commissioni, noi ti premiamo con uno sconto del 10% sul primo ordine." />
+  <meta property="og:type"        content="restaurant" />
+  <meta property="og:locale"      content="it_IT" />
+
+  <!-- Schema.org LocalBusiness – Rich Snippets per Google Maps -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Restaurant",
+    "name": "Pizzeria Da Rocco",
+    "image": "",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "Via Roma 42",
+      "addressLocality": "Quarrata",
+      "postalCode": "51039",
+      "addressRegion": "PT",
+      "addressCountry": "IT"
+    },
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": 43.844,
+      "longitude": 10.979
+    },
+    "telephone": "+39 0573 000000",
+    "openingHours": ["Mo-Su 18:00-23:00"],
+    "servesCuisine": "Pizza",
+    "priceRange": "€€",
+    "url": "https://www.pizzeriadarocco.it",
+    "hasMenu": "https://www.pizzeriadarocco.it/#menu",
+    "acceptsReservations": "True",
+    "paymentAccepted": "Cash, Credit Card, Apple Pay, PayPal"
+  }
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Lato:wght@300;400;700&family=Dancing+Script:wght@700&display=swap" rel="stylesheet" />
+
+  <!-- Stylesheet esterno -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ================================================
+     PROMO BANNER (Phase 3 – CRO: incentivo ordine diretto)
+================================================ -->
+<div class="promo-banner">
+  🍕 Ordina direttamente qui e risparmia: <span>-10%</span> sul primo ordine online!
+</div>
+
+<!-- ================================================
+     NAVBAR
+================================================ -->
+<nav class="navbar" role="navigation" aria-label="Navigazione principale">
+  <div class="navbar-logo">
+    Da Rocco
+    <small>Pizzeria · Quarrata (PT)</small>
+  </div>
+  <div class="navbar-actions">
+    <button class="btn-cart" id="cartBtn" aria-label="Apri carrello">
+      🛒 Carrello
+      <span class="cart-count" id="cartCount" style="display:none">0</span>
+    </button>
+  </div>
+</nav>
+
+<!-- ================================================
+     HERO – ABOVE THE FOLD  (Phase 1 – Mobile First CTA)
+================================================ -->
+<section class="hero" aria-labelledby="heroTitle">
+  <div class="hero-bg"></div>
+  <div class="hero-img" aria-hidden="true">🍕</div>
+
+  <div class="hero-content">
+    <p class="hero-eyebrow animate-in">Pizzeria a Quarrata dal 1987</p>
+    <h1 class="hero-title animate-in delay-1" id="heroTitle">
+      Pizza <em>vera,</em><br>consegnata a casa tua.
+    </h1>
+    <p class="hero-subtitle animate-in delay-2">
+      Niente app esterne, niente commissioni. Ordina direttamente da noi e
+      ricevi la pizza più fresca di Quarrata — con lo sconto sul primo ordine.
+    </p>
+    <div class="hero-ctas animate-in delay-3">
+      <button class="btn-primary" id="heroOrderBtn">🛵 Ordina Ora per l'Asporto</button>
+      <a href="tel:+390573000000" class="btn-secondary">📞 Chiama e Prenota Tavolo</a>
+    </div>
+    <div class="hero-trust animate-in delay-4">
+      <div class="trust-badge"><span>⭐</span> 4.9/5 su Google</div>
+      <div class="trust-badge"><span>⏱</span> Pronta in 20 min</div>
+      <div class="trust-badge"><span>💳</span> Paga online</div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================
+     SEZIONE RISPARMIA (Phase 3 – CRO: disintermediazione app)
+================================================ -->
+<section class="save-section" aria-label="Promozione primo ordine diretto">
+  <div class="save-tag">🎉 Offerta Benvenuto</div>
+  <h2 class="save-title">Perché pagare le commissioni<br>a JustEat o Deliveroo?</h2>
+  <p class="save-desc">
+    Le app di delivery trattengono fino al <strong>30%</strong> sul tuo ordine.
+    Ordina qui, ottieni lo stesso prodotto e una pizza extra nel lungo periodo.
+    Usa il codice qui sotto al primo ordine:
+  </p>
+  <div class="save-code-box">🏷️ ROCCO10</div>
+  <p class="save-note">Valido solo sul sito ufficiale · Una volta per account · Sconto del 10%</p>
+</section>
+
+<!-- ================================================
+     MENU  (Phase 1 – food porn + Phase 2 – e-commerce)
+================================================ -->
+<section id="menu" aria-label="Menù pizzeria">
+  <div class="section-header">
+    <p class="section-eyebrow">Il nostro menù</p>
+    <h2 class="section-title">Le Pizze <em>Classiche</em></h2>
+  </div>
+
+  <div class="menu-tabs" role="tablist" aria-label="Categorie menù">
+    <button class="menu-tab active" role="tab" aria-selected="true"  onclick="filterMenu(this,'classiche')">🍅 Classiche</button>
+    <button class="menu-tab"        role="tab" aria-selected="false" onclick="filterMenu(this,'speciali')">⭐ Speciali</button>
+    <button class="menu-tab"        role="tab" aria-selected="false" onclick="filterMenu(this,'bianche')">🧀 Bianche</button>
+    <button class="menu-tab"        role="tab" aria-selected="false" onclick="filterMenu(this,'dolci')">🍫 Dolci</button>
+    <button class="menu-tab"        role="tab" aria-selected="false" onclick="filterMenu(this,'bevande')">🥤 Bevande</button>
+  </div>
+
+  <div class="menu-grid" id="menuGrid" role="list">
+    <!-- Articoli iniettati dinamicamente da script.js -->
+  </div>
+</section>
+
+<!-- ================================================
+     ORARI & INFO  (Phase 4 – SEO locale NAP)
+================================================ -->
+<section class="info-section" aria-label="Informazioni pizzeria">
+  <div class="section-header" style="padding:0 0 20px;">
+    <p class="section-eyebrow">Come trovarci</p>
+    <h2 class="section-title" style="font-size:1.6rem;">Pizzeria a <em>Quarrata</em></h2>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-item">
+      <span class="info-label">📍 Indirizzo</span>
+      <span class="info-value" itemprop="address">
+        <strong>Via Roma 42</strong><br>
+        Quarrata (PT), 51039
+      </span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">📞 Telefono</span>
+      <span class="info-value">
+        <a href="tel:+390573000000" itemprop="telephone"><strong>0573 000000</strong></a><br>
+        <span style="font-size:0.75rem; color:var(--ash)">Ordini e prenotazioni</span>
+      </span>
+    </div>
+
+    <div class="info-divider"></div>
+
+    <div class="info-item" style="grid-column:1/-1;">
+      <span class="info-label">🕐 Orari di Apertura</span>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px 16px; margin-top:4px;"
+           itemprop="openingHours" content="Mo-Su 18:00-23:00">
+        <span class="info-value">Lun – Ven</span>   <span class="info-value"><strong>18:00 – 23:00</strong></span>
+        <span class="info-value">Sabato</span>       <span class="info-value"><strong>12:00 – 14:30 · 18:00 – 23:30</strong></span>
+        <span class="info-value">Domenica</span>     <span class="info-value"><strong>12:00 – 14:30 · 18:00 – 23:00</strong></span>
+        <span class="info-value" style="color:var(--ember)">Martedì</span>
+        <span class="info-value" style="color:var(--ash)">Chiuso</span>
+      </div>
+    </div>
+
+    <div class="info-divider"></div>
+
+    <div class="info-item" style="grid-column:1/-1;">
+      <span class="info-label">🚗 Zona di consegna</span>
+      <!-- Long-tail SEO keywords nel corpo del testo -->
+      <span class="info-value">
+        <strong>Pizza a domicilio Quarrata</strong> e zone limitrofe: Quarrata centro,
+        Santonuovo, Larciano, Casalguidi. Consegna attiva dal mercoledì al sabato sera.
+        Nessun costo aggiuntivo per <em>pizza asporto 51039</em>.
+      </span>
+    </div>
+  </div>
+
+  <a href="https://maps.google.com/?q=Via+Roma+42+Quarrata+51039"
+     target="_blank" rel="noopener" class="info-map-btn">
+    🗺️ Apri su Google Maps
+  </a>
+</section>
+
+<!-- ================================================
+     RECENSIONI
+================================================ -->
+<section class="reviews-section" aria-label="Recensioni clienti">
+  <div class="section-header">
+    <p class="section-eyebrow">Cosa dicono di noi</p>
+    <h2 class="section-title">Recensioni <em>Reali</em></h2>
+  </div>
+  <div class="reviews-scroll" role="list">
+    <article class="review-card" role="listitem">
+      <div class="review-stars">★★★★★</div>
+      <p class="review-text">"Finalmente una pizzeria a Quarrata dove ordino direttamente senza passare da Deliveroo. Pizza buonissima e arriva sempre calda!"</p>
+      <span class="review-author">— Marco T., Quarrata</span>
+    </article>
+    <article class="review-card" role="listitem">
+      <div class="review-stars">★★★★★</div>
+      <p class="review-text">"La pizza margherita è semplicemente perfetta. L'impasto a lunga lievitazione fa tutta la differenza. Ordino almeno due volte a settimana."</p>
+      <span class="review-author">— Silvia R., Quarrata</span>
+    </article>
+    <article class="review-card" role="listitem">
+      <div class="review-stars">★★★★★</div>
+      <p class="review-text">"Sito facilissimo da usare, ho pagato con Apple Pay in 30 secondi. Pizza pronta in 20 minuti come promesso. La migliore pizzeria di Quarrata senza dubbio!"</p>
+      <span class="review-author">— Lorenzo B., Santonuovo</span>
+    </article>
+    <article class="review-card" role="listitem">
+      <div class="review-stars">★★★★★</div>
+      <p class="review-text">"Uso lo sconto ROCCO10 dal primo ordine e ho scoperto che costava meno che su JustEat. Da allora ordino sempre da qui, pizza eccezionale."</p>
+      <span class="review-author">— Federica M., Quarrata centro</span>
+    </article>
+  </div>
+</section>
+
+<!-- SEO text block – leggibile dai crawler, contestuale per il Local Pack -->
+<div style="padding:0 20px 20px; max-width:700px; margin:0 auto;">
+  <p style="font-size:0.78rem; color:var(--ash); line-height:1.7; text-align:center;">
+    <strong style="color:var(--cream)">Pizzeria Da Rocco</strong> è la tua pizzeria d'asporto
+    di fiducia a <strong style="color:var(--cream)">Quarrata (CAP 51039)</strong>, provincia di Pistoia.
+    Cerchi <em>pizza a domicilio Quarrata</em>? Sei nel posto giusto. Offriamo <em>pizza asporto</em>
+    e consegna a domicilio nelle zone di Quarrata, Santonuovo, Casalguidi e dintorni.
+    <em>Pizzeria aperta stasera 51039?</em> Controlla i nostri orari sopra.
+    Impasto a lunga lievitazione, forno a legna, ingredienti locali toscani.
+    Ordina online senza commissioni: <strong style="color:var(--cream)">migliore pizzeria Quarrata</strong> – senza discussioni.
+  </p>
+</div>
+
+<!-- ================================================
+     FOOTER – NAP completo (Phase 4 – schema.org)
+================================================ -->
+<footer role="contentinfo">
+  <div class="footer-logo">Da Rocco</div>
+
+  <!-- NAP: Name · Address · Phone – schema.org microdata -->
+  <div class="footer-nap" itemscope itemtype="https://schema.org/Restaurant">
+    <p>
+      <strong itemprop="name">Pizzeria Da Rocco</strong><br>
+      <span itemprop="address" itemscope itemtype="https://schema.org/PostalAddress">
+        <span itemprop="streetAddress">Via Roma, 42</span> –
+        <span itemprop="addressLocality">Quarrata</span>
+        (<span itemprop="addressRegion">PT</span>)
+        <span itemprop="postalCode">51039</span>
+      </span><br>
+      Tel: <a href="tel:+390573000000" itemprop="telephone"
+              style="color:var(--ember-light)"><strong>0573 000000</strong></a><br>
+      <span itemprop="openingHours" content="Tu-Su 18:00-23:00">
+        Aperto: Mer–Dom dalle 18:00 · Sabato e Dom anche a pranzo
+      </span>
+    </p>
+  </div>
+
+  <p class="footer-seo-text">
+    <strong>Pizza a domicilio Quarrata</strong> e asporto diretto dal forno a legna.
+    Ordina online sul nostro sito ufficiale e risparmia rispetto alle app esterne.
+    Copriamo tutta la zona <a href="#menu">51039</a> — Quarrata, Pistoia.
+  </p>
+
+  <div class="footer-links">
+    <a href="#menu">Menù</a>
+    <a href="#" onclick="openCart()">Ordina Online</a>
+    <a href="tel:+390573000000">Telefono</a>
+    <a href="#">Privacy Policy</a>
+    <a href="#">Cookie</a>
+  </div>
+  <p class="footer-copy">© 2025 Pizzeria Da Rocco – Via Roma 42, Quarrata (PT) 51039 · P.IVA 00000000000</p>
+</footer>
+
+<!-- ================================================
+     STICKY ORDER BAR (appare scrollando oltre l'hero)
+================================================ -->
+<div class="sticky-order-bar" id="stickyBar">
+  <button class="sticky-order-btn" onclick="openCart()">
+    🛵 Ordina Ora — Pronta in 20 min
+    <span id="stickyPrice" style="background:rgba(255,255,255,0.2); border-radius:50px; padding:3px 10px; font-size:0.85rem;"></span>
+  </button>
+</div>
+
+<!-- ================================================
+     OVERLAY (sfondo scuro per drawer e popup)
+================================================ -->
+<div class="overlay" id="overlay" onclick="closeCart()"></div>
+
+<!-- ================================================
+     CART DRAWER  (Phase 2 – motore e-commerce)
+================================================ -->
+<div class="cart-drawer" id="cartDrawer" role="dialog" aria-modal="true" aria-label="Carrello ordine">
+  <div class="cart-handle"></div>
+  <div class="cart-header">
+    <span class="cart-title">🛒 Il tuo Ordine</span>
+    <button class="btn-close-cart" onclick="closeCart()" aria-label="Chiudi carrello">✕</button>
+  </div>
+  <div class="cart-body">
+
+    <!-- Delivery / Pickup toggle (Phase 2 – Click & Collect) -->
+    <div class="delivery-toggle" role="group" aria-label="Modalità ordine">
+      <button class="toggle-btn active" id="toggleDelivery" onclick="setMode('delivery')">🛵 Consegna a Casa</button>
+      <button class="toggle-btn"        id="togglePickup"   onclick="setMode('pickup')">🏪 Ritiro in Negozio</button>
+    </div>
+
+    <!-- Calcolatore tempi (Phase 2) -->
+    <div class="time-estimator" id="timeEstimator">
+      ⏱ Tempo stimato: <strong id="estimatedTime">20–30 minuti</strong>
+    </div>
+
+    <!-- Lista articoli -->
+    <div id="cartItems">
+      <div class="cart-empty" id="cartEmpty">
+        <span>🍕</span>
+        Il tuo carrello è vuoto.<br>Aggiungi qualche pizza dal menù!
+      </div>
+    </div>
+
+    <!-- Checkout form (Phase 3 – acquisizione dati obbligatoria) -->
+    <div class="checkout-section" id="checkoutSection" style="display:none">
+      <div class="checkout-title">📋 I tuoi dati di contatto</div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="firstName">Nome</label>
+          <input class="form-input" type="text" id="firstName" placeholder="Mario" required autocomplete="given-name" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="lastName">Cognome</label>
+          <input class="form-input" type="text" id="lastName" placeholder="Rossi" required autocomplete="family-name" />
+        </div>
+      </div>
+
+      <!-- OBBLIGATORIO – cellulare per SMS remarketing (Phase 3) -->
+      <div class="form-group">
+        <label class="form-label" for="phone">
+          📱 Cellulare <span style="color:var(--ember)">*</span>
+        </label>
+        <input class="form-input" type="tel" id="phone"
+               placeholder="+39 333 000 0000" required autocomplete="tel" />
+        <p class="form-note">📣 Usato solo per aggiornamenti sull'ordine e offerte esclusive (SMS). Nessuno spam.</p>
+      </div>
+
+      <!-- OBBLIGATORIO – email per DEM (Phase 3) -->
+      <div class="form-group">
+        <label class="form-label" for="email">
+          ✉️ Email <span style="color:var(--ember)">*</span>
+        </label>
+        <input class="form-input" type="email" id="email"
+               placeholder="mario@esempio.it" required autocomplete="email" />
+        <p class="form-note">📣 Riceverai la conferma ordine + offerte DEM dei martedì (giorno di bassa affluenza).</p>
+      </div>
+
+      <!-- Indirizzo (solo delivery) -->
+      <div id="deliveryAddressBlock">
+        <div class="form-group">
+          <label class="form-label" for="address">Indirizzo di Consegna</label>
+          <input class="form-input" type="text" id="address"
+                 placeholder="Via Garibaldi, 10" autocomplete="street-address" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="city">Comune</label>
+            <input class="form-input" type="text" id="city"
+                   value="Quarrata" autocomplete="address-level2" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cap">CAP</label>
+            <input class="form-input" type="text" id="cap"
+                   value="51039" autocomplete="postal-code" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Orario di ritiro (solo pickup – Click & Collect) -->
+      <div id="pickupTimeBlock" style="display:none">
+        <div class="form-group">
+          <label class="form-label" for="pickupTime">⏰ Orario di Ritiro</label>
+          <select class="form-input" id="pickupTime">
+            <option>Il prima possibile (~20 min)</option>
+            <option>19:00</option><option>19:30</option>
+            <option>20:00</option><option>20:30</option>
+            <option>21:00</option><option>21:30</option>
+            <option>22:00</option><option>22:30</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="notes">Note per la cucina (opzionale)</label>
+        <input class="form-input" type="text" id="notes"
+               placeholder="Es: senza cipolla, piccante..." />
+      </div>
+
+      <!-- Codice sconto -->
+      <div class="form-group">
+        <label class="form-label" for="coupon">🏷️ Codice Sconto</label>
+        <div style="display:flex; gap:8px;">
+          <input class="form-input" type="text" id="coupon"
+                 placeholder="ROCCO10" style="flex:1; text-transform:uppercase;" />
+          <button style="background:var(--ember); color:#fff; border-radius:var(--radius-sm);
+                         padding:0 16px; font-weight:700; font-size:0.85rem;"
+                  onclick="applyCoupon()">Applica</button>
+        </div>
+        <p class="form-note" id="couponMsg"></p>
+      </div>
+
+      <!-- Metodi di pagamento (Phase 2 – gateway diretti) -->
+      <div class="checkout-title" style="margin-top:8px;">💳 Metodo di Pagamento</div>
+      <div class="payment-methods" id="paymentMethods">
+        <button class="pay-pill selected" onclick="selectPayment(this)">💳 Carta</button>
+        <button class="pay-pill"          onclick="selectPayment(this)"> Apple Pay</button>
+        <button class="pay-pill"          onclick="selectPayment(this)">🅿️ PayPal</button>
+        <button class="pay-pill"          onclick="selectPayment(this)">💶 Contanti</button>
+      </div>
+
+      <!-- Totale -->
+      <div class="cart-total">
+        <div>
+          <div class="cart-total-label">Totale ordine</div>
+          <div style="font-size:0.72rem; color:var(--ash)" id="discountLine"></div>
+        </div>
+        <div class="cart-total-amount" id="cartTotal">€0,00</div>
+      </div>
+
+      <button class="btn-checkout" onclick="placeOrder()">
+        🍕 Conferma Ordine
+      </button>
+      <p class="checkout-legal">
+        Confermando l'ordine accetti i
+        <a href="#" style="color:var(--ember-light)">Termini e Condizioni</a>.
+        I tuoi dati sono trattati ai sensi del
+        <a href="#" style="color:var(--ember-light)">GDPR</a> e non saranno ceduti a terzi.
+        Potrai ricevere comunicazioni promozionali via SMS/email (es. offerte del mercoledì sera).
+      </p>
+    </div><!-- /checkout-section -->
+
+  </div><!-- /cart-body -->
+</div><!-- /cart-drawer -->
+
+<!-- ================================================
+     POPUP SCONTO PRIMO ORDINE  (Phase 3 – lead capture)
+================================================ -->
+<div class="popup-overlay" id="popupOverlay"
+     role="dialog" aria-modal="true" aria-label="Offerta primo ordine">
+  <div class="popup-card">
+    <button class="popup-close" onclick="closePopup()" aria-label="Chiudi">✕</button>
+    <span class="popup-emoji">🎉</span>
+    <h2 class="popup-title">Sconto del <em>10%</em><br>sul tuo primo ordine!</h2>
+    <p class="popup-desc">
+      Lasciaci la tua email e ottieni subito il codice sconto <strong>ROCCO10</strong>.
+      Ti avviseremo anche delle offerte speciali del mercoledì e martedì sera —
+      i giorni più tranquilli, le migliori offerte.
+    </p>
+    <input class="popup-email-input" type="email" id="popupEmail"
+           placeholder="La tua email..." autocomplete="email" />
+    <button class="btn-popup-cta" onclick="claimDiscount()">🍕 Voglio lo sconto!</button>
+    <p class="popup-skip" onclick="closePopup()">No grazie, preferisco pagare il prezzo pieno</p>
+  </div>
+</div>
+
+<!-- Script esterno – caricato in fondo per performance -->
+<script src="script.js"></script>
+</body>
+</html>
