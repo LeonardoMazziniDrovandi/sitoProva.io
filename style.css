@@ -684,3 +684,19 @@ body:has(.sticky-order-bar.visible) { padding-bottom: 72px; }
 }
 .btn-logout:hover  { background: rgba(232, 76, 12, 0.22); }
 .btn-logout:active { transform: scale(0.92); }
+
+/* Select option – fix colori nativi browser */
+.form-input option {
+  background: #2a1c0e;
+  color: #f5efe6;
+}
+
+/* PayPal button container */
+#paypalButtonContainer {
+  border-radius: 50px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+#paypalButtonContainer iframe {
+  border-radius: 50px !important;
+}

@@ -356,7 +356,7 @@
           <span class="pay-label">Apple Pay</span>
           <span class="pay-sub">Touch / Face ID</span>
         </button>
-        <button class="pay-pill" onclick="selectPayment(this)" data-method="PayPal">
+        <button class="pay-pill" onclick="selectPayment(this)" data-method="PayPal" id="pillPayPal">
           <span class="pay-icon">🅿️</span>
           <span class="pay-label">PayPal</span>
           <span class="pay-sub">Conto o carta</span>
@@ -374,7 +374,11 @@
         </div>
         <div class="cart-total-amount" id="cartTotal">€0,00</div>
       </div>
-      <button class="btn-checkout" onclick="placeOrder()">🍕 Conferma Ordine</button>
+      <!-- Bottone standard (Carta / Apple Pay / Contanti) -->
+      <button class="btn-checkout" id="btnConferma" onclick="placeOrder()">🍕 Conferma Ordine</button>
+
+      <!-- Container bottoni PayPal SDK (visibile solo se PayPal selezionato) -->
+      <div id="paypalButtonContainer" style="display:none; margin-bottom:16px;"></div>
       <p class="checkout-legal">
         Confermando accetti i <a href="#" style="color:var(--ember-light)">Termini e Condizioni</a>.
         Dati trattati ai sensi del <a href="#" style="color:var(--ember-light)">GDPR</a>.

@@ -5,6 +5,27 @@
 ============================================================ */
 
 const SHEETDB        = 'https://sheetdb.io/api/v1/ru78o5h25a0cx';
+
+/* ============================================================
+   CONFIG – offuscato (XOR)
+   Non modificare manualmente
+============================================================ */
+const _x = [51,56,51,33,11,2,55,31,5,10,39,39,113,70,107,127,22,25,17,50,27,15,52,53,26,83,12,41,113,99,69,111,1,29,52,20,24,15,88,59,43,14,2,26,2,64,109,126,36,55,80,84,31,0,7,67,12,87,43,59,117,125,5,2,66,90,25,49,10,30,59,62,14,45,53,54,115,100,1,83];
+const _k = 'roccodarocco2025';
+function _d(a,k){return a.map((v,i)=>String.fromCharCode(v^k.charCodeAt(i%k.length))).join('');}
+
+/** Carica lo SDK PayPal dinamicamente (Client ID offuscato) */
+function loadPayPalSDK() {
+  return new Promise((resolve, reject) => {
+    if (typeof paypal !== 'undefined') { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://www.paypal.com/sdk/js?client-id=' + _d(_x,_k) + '&currency=EUR&locale=it_IT';
+    s.onload  = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
 const SHEETDB_ORDERS = 'https://sheetdb.io/api/v1/dknnwb5fpszzz';
 
 /* ============================================================
@@ -231,6 +252,22 @@ function setMode(mode) {
 function selectPayment(btn) {
   document.querySelectorAll('#paymentMethods .pay-pill').forEach(b => b.classList.remove('selected'));
   btn.classList.add('selected');
+
+  const isPayPal   = btn.dataset.method === 'PayPal';
+  const ppContainer = document.getElementById('paypalButtonContainer');
+  const btnConferma = document.getElementById('btnConferma');
+
+  if (isPayPal) {
+    if (btnConferma)  btnConferma.style.display  = 'none';
+    if (ppContainer)  ppContainer.style.display  = 'block';
+    // Render PayPal buttons se non ancora montati
+    if (ppContainer && ppContainer.children.length === 0) {
+      loadPayPalSDK().then(() => renderPayPalButtons());
+    }
+  } else {
+    if (btnConferma)  btnConferma.style.display  = 'block';
+    if (ppContainer)  ppContainer.style.display  = 'none';
+  }
 }
 
 /* ============================================================
@@ -368,6 +405,178 @@ function cartItemsToString() {
   return Object.values(cart)
     .map(i => `${i.name} x${i.qty} (€${(i.price * i.qty).toFixed(2)})`)
     .join(' | ');
+}
+
+/* ============================================================
+   PAYPAL – render bottoni SDK
+============================================================ */
+
+/** Valida i campi del form e ritorna i dati, oppure null se invalidi */
+function validateOrderForm() {
+  if (!currentUser) { closeCart(); openAuth(); return null; }
+  if (getCartCount() === 0) { alert('Aggiungi almeno un articolo al carrello.'); return null; }
+
+  const firstName = document.getElementById('firstName').value.trim();
+  const lastName  = document.getElementById('lastName').value.trim();
+  const phone     = document.getElementById('checkPhone').value.trim();
+  const email     = document.getElementById('checkEmail').value.trim();
+  const notes     = document.getElementById('notes').value.trim();
+
+  let address = '', orario = '';
+  if (deliveryMode === 'delivery') {
+    const via  = document.getElementById('address').value.trim();
+    const city = document.getElementById('city').value.trim();
+    const cap  = document.getElementById('cap').value.trim();
+    if (!via) { alert("Inserisci l'indirizzo di consegna."); return null; }
+    address = `${via}, ${city} ${cap}`;
+  } else {
+    orario = document.getElementById('pickupTime').value;
+  }
+
+  if (!firstName || !phone || !email) {
+    alert('Compila i campi obbligatori: nome, cellulare ed email.');
+    return null;
+  }
+  return { firstName, lastName, phone, email, notes, address, orario };
+}
+
+/** Salva l'ordine su SheetDB e mostra conferma */
+async function saveOrderToDb(paymentMethod, transactionId = '') {
+  const form    = validateOrderForm();
+  if (!form) return false;
+  const { firstName, lastName, phone, email, notes, address, orario } = form;
+
+  const orderId = 'ORD-' + genId().toUpperCase();
+  const total   = getCartTotal();
+
+  const orderPayload = {
+    data: [{
+      id_ordine:    orderId,
+      utente_id:    currentUser.uid || currentUser.telefono,
+      nome:         firstName,
+      cognome:      lastName,
+      telefono:     phone,
+      email:        email,
+      modalita:     deliveryMode === 'delivery' ? 'Consegna' : 'Ritiro',
+      indirizzo:    deliveryMode === 'delivery' ? address : ('Ritiro ore ' + orario),
+      note:         notes,
+      items:        cartItemsToString(),
+      totale:       '€' + total.toFixed(2),
+      sconto:       discountApplied ? 'ROCCO10 -10%' : 'Nessuno',
+      pagamento:    paymentMethod,
+      transazione:  transactionId,
+      stato:        transactionId ? 'Pagato' : 'In attesa',
+      data_ordine:  new Date().toISOString().slice(0, 16).replace('T', ' ')
+    }]
+  };
+
+  const orderRes = await fetch(SHEETDB_ORDERS, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(orderPayload)
+  });
+  if (!orderRes.ok) throw new Error('Errore salvataggio ordine');
+
+  // Segna coupon usato
+  if (discountApplied) {
+    try {
+      await fetch(`${SHEETDB}/uid/${encodeURIComponent(currentUser.uid)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { sconto_usato: 'true' } })
+      });
+      currentUser.sconto_usato = 'true';
+      updateScontoStatus();
+    } catch(e) { console.warn('Patch sconto_usato fallita:', e); }
+  }
+
+  // Mostra conferma
+  closeCart();
+  document.getElementById('stickyBar').classList.remove('visible');
+  document.getElementById('checkoutSection').style.display = 'none';
+  document.getElementById('proceedBar').style.display = 'none';
+
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="orderConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:900;display:flex;align-items:center;justify-content:center;padding:24px;">
+      <div style="background:#1e160a;border-radius:24px;padding:36px 24px;text-align:center;max-width:380px;width:100%;">
+        <span style="font-size:4rem;display:block;margin-bottom:16px;">${transactionId ? '✅' : '✅'}</span>
+        <h2 style="font-family:var(--font-display);font-size:1.7rem;font-weight:900;color:var(--mozzarella);margin-bottom:10px;">Ordine Confermato!</h2>
+        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:14px;margin-bottom:16px;">
+          <p style="color:var(--gold);font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;">Numero ordine</p>
+          <p style="font-family:'Courier New',monospace;font-size:1.1rem;font-weight:900;color:var(--cream);">${orderId}</p>
+          ${transactionId ? `<p style="color:var(--ash);font-size:0.7rem;margin-top:4px;">PayPal ID: ${transactionId}</p>` : ''}
+        </div>
+        <p style="color:var(--ash);font-size:0.85rem;line-height:1.6;margin-bottom:6px;">
+          Ciao <strong style="color:var(--cream)">${firstName}</strong>! Il tuo ordine è stato ricevuto.
+        </p>
+        <p style="color:var(--ash);font-size:0.82rem;margin-bottom:6px;">📱 SMS al <strong style="color:var(--cream)">${phone}</strong></p>
+        <p style="color:var(--ash);font-size:0.82rem;margin-bottom:4px;">💳 Pagamento: <strong style="color:var(--cream)">${paymentMethod}</strong></p>
+        <p style="color:var(--gold);font-size:0.9rem;font-weight:700;margin:12px 0 20px;">
+          ⏱ ${deliveryMode === 'pickup' ? '15–20 min' : '25–35 min'}
+        </p>
+        <button style="background:var(--ember);color:#fff;border-radius:50px;padding:14px 32px;font-weight:700;font-size:0.95rem;width:100%;cursor:pointer;border:none;"
+          onclick="document.getElementById('orderConfirm').remove()">Perfetto! 🍕</button>
+      </div>
+    </div>`);
+
+  cart = {};
+  discountApplied = false;
+  updateCartUI();
+  return true;
+}
+
+function renderPayPalButtons() {
+  const container = document.getElementById('paypalButtonContainer');
+  if (!container) return;
+  loadPayPalSDK().then(() => {
+    if (container.children.length > 0) return; // già montato
+
+  paypal.Buttons({
+    style: {
+      layout:  'vertical',
+      color:   'gold',
+      shape:   'pill',
+      label:   'paypal',
+      height:  48
+    },
+
+    // Crea l'ordine PayPal con il totale reale
+    createOrder: (data, actions) => {
+      const form = validateOrderForm();
+      if (!form) return Promise.reject(new Error('Form non valido'));
+      const total = getCartTotal();
+      return actions.order.create({
+        purchase_units: [{
+          description: 'Ordine Pizzeria Da Rocco – ' + cartItemsToString(),
+          amount: {
+            currency_code: 'EUR',
+            value: total.toFixed(2)
+          }
+        }]
+      });
+    },
+
+    // Pagamento approvato → cattura e salva ordine
+    onApprove: async (data, actions) => {
+      const details = await actions.order.capture();
+      const txId    = details.id;
+      await saveOrderToDb('PayPal', txId);
+    },
+
+    // Utente annulla
+    onCancel: () => {
+      console.log('PayPal: pagamento annullato');
+    },
+
+    // Errore PayPal
+    onError: (err) => {
+      console.error('PayPal error:', err);
+      alert('❌ Errore PayPal. Riprova o scegli un altro metodo di pagamento.');
+    }
+  }).render('#paypalButtonContainer');
+  }).catch(() => {
+    alert('Errore caricamento PayPal. Controlla la connessione.');
+  });
 }
 
 async function placeOrder() {
