@@ -353,7 +353,7 @@ async function placeOrder() {
     const via  = document.getElementById('address').value.trim();
     const city = document.getElementById('city').value.trim();
     const cap  = document.getElementById('cap').value.trim();
-    if (!via) { alert('Inserisci l'indirizzo di consegna.'); return; }
+    if (!via) { alert("Inserisci l'indirizzo di consegna."); return; }
     address = `${via}, ${city} ${cap}`;
   } else {
     orario = document.getElementById('pickupTime').value;
@@ -458,7 +458,7 @@ async function placeOrder() {
     console.error(err);
     btn.disabled = false;
     btn.textContent = '🍕 Conferma Ordine';
-    alert('❌ Errore durante l'invio dell'ordine. Controlla la connessione e riprova.');
+    alert("❌ Errore durante l'invio dell'ordine. Controlla la connessione e riprova.");
   }
 }
 
@@ -623,7 +623,7 @@ async function handleRegister() {
       setMsg('registerMsg', '✅ Benvenuto/a ' + nome + '! Account creato.', 'success');
       setTimeout(showLoggedPanel, 1200);
     } else {
-      setMsg('registerMsg', '❌ Errore durante la registrazione. Riprova.', 'error');
+    alert("❌ Errore durante l'invio dell'ordine. Controlla la connessione e riprova.");
     }
   } catch (err) {
     console.error(err);
