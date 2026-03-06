@@ -165,14 +165,23 @@ function updateCartUI() {
 
   empty.style.display = 'none';
 
-  // Mostra login gate oppure checkout in base allo stato login
-  const loginGate = document.getElementById('loginGate');
+  // Mostra login gate oppure bottone procedi in base allo stato login
+  const loginGate  = document.getElementById('loginGate');
+  const proceedBar = document.getElementById('proceedBar');
   if (!currentUser) {
-    loginGate.style.display    = 'block';
+    loginGate.style.display       = 'block';
+    proceedBar.style.display      = 'none';
     checkoutSection.style.display = 'none';
   } else {
-    loginGate.style.display    = 'none';
-    checkoutSection.style.display = 'block';
+    loginGate.style.display       = 'none';
+    proceedBar.style.display      = 'block';
+    checkoutSection.style.display = 'none';
+    // Aggiorna totale nel proceedBar
+    const total = getCartTotal();
+    const preAmt = document.getElementById('cartTotalPreAmt');
+    const preLine = document.getElementById('cartTotalPre');
+    if (preAmt) preAmt.textContent = '€' + total.toFixed(2).replace('.', ',');
+    if (preLine) preLine.innerHTML = discountApplied ? '<span style="color:var(--gold)">✓ ROCCO10 -10%</span>' : '';
   }
 
   container.querySelectorAll('.cart-item').forEach(el => el.remove());
@@ -293,6 +302,17 @@ function closeCart() {
   document.getElementById('overlay').classList.remove('open');
   document.body.style.overflow = '';
   if (getCartCount() > 0) document.getElementById('stickyBar').classList.add('visible');
+  // Resetta il drawer allo step 1 (proceedBar) quando si chiude
+  const cs = document.getElementById('checkoutSection');
+  const pb = document.getElementById('proceedBar');
+  if (cs) cs.style.display = 'none';
+  if (pb && currentUser && getCartCount() > 0) pb.style.display = 'block';
+}
+
+function openCheckout() {
+  document.getElementById('proceedBar').style.display      = 'none';
+  document.getElementById('checkoutSection').style.display = 'block';
+  prefillCheckout();
 }
 
 /* ============================================================
