@@ -917,3 +917,109 @@ footer {
   }
   .cart-drawer.open { transform: translate(-50%, 0); }
 }
+
+/* ===========================
+   AUTH BUTTON (navbar)
+=========================== */
+.btn-auth {
+  background: rgba(255,255,255,0.08);
+  color: var(--cream);
+  border: 1.5px solid rgba(255,255,255,0.15);
+  border-radius: 50px;
+  padding: 9px 16px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.04em;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  white-space: nowrap;
+}
+.btn-auth:active { transform: scale(0.96); }
+.btn-auth.logged-in {
+  background: rgba(245, 184, 65, 0.12);
+  border-color: rgba(245, 184, 65, 0.35);
+  color: var(--gold);
+}
+
+/* ===========================
+   AUTH DRAWER
+=========================== */
+.auth-drawer {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: #1e160a;
+  border-radius: 24px 24px 0 0;
+  z-index: 500;
+  padding: 0 0 env(safe-area-inset-bottom, 0);
+  max-height: 92svh;
+  overflow-y: auto;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(.32,.72,0,1);
+}
+.auth-drawer.open { transform: translateY(0); }
+
+/* Auth tabs */
+.auth-tabs {
+  display: flex;
+  margin: 0 20px 4px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 50px;
+  padding: 4px;
+  gap: 0;
+}
+.auth-tab {
+  flex: 1;
+  padding: 10px;
+  border-radius: 50px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ash);
+  text-align: center;
+  background: transparent;
+  transition: all 0.2s;
+  letter-spacing: 0.04em;
+}
+.auth-tab.active {
+  background: var(--ember);
+  color: #fff;
+}
+
+.auth-body {
+  padding: 20px 20px 28px;
+}
+
+/* Auth messages */
+.auth-msg {
+  font-size: 0.78rem;
+  min-height: 18px;
+  margin-bottom: 12px;
+  text-align: center;
+  font-weight: 700;
+}
+.auth-msg.error   { color: var(--ember); }
+.auth-msg.success { color: #4caf82; }
+.auth-msg.loading { color: var(--gold); }
+
+/* Loading spinner on buttons */
+.btn-loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+.btn-loading::before {
+  content: '⏳ ';
+}
+
+/* Desktop */
+@media (min-width: 900px) {
+  .auth-drawer {
+    max-width: 460px;
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, 100%);
+    border-radius: 24px;
+    bottom: 20px;
+  }
+  .auth-drawer.open { transform: translate(-50%, 0); }
+}

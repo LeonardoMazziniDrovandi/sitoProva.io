@@ -357,3 +357,254 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!popupShown && getCartCount() === 0) showPopup();
   }, 8000);
 });
+
+/* ============================================================
+   AUTH – Accedi / Registrati collegato a SheetDB
+   API: https://sheetdb.io/api/v1/ru78o5h25a0cx
+   Colonne Google Sheet attese:
+     id | nome | cognome | email | telefono | password | data_registrazione | codice_fedelta
+============================================================ */
+
+const SHEETDB_URL = 'https://sheetdb.io/api/v1/ru78o5h25a0cx';
+
+/* ---- Sessione utente in memoria ---- */
+let currentUser = null;
+
+/* ---- Utility: genera codice fedeltà ---- */
+function generateLoyaltyCode(nome) {
+  const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+  return 'ROC-' + nome.substring(0, 3).toUpperCase() + rand;
+}
+
+/* ---- Utility: semplice hash (non usare in produzione – usare bcrypt lato server) ---- */
+async function simpleHash(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/* ---- Apri / Chiudi auth drawer ---- */
+function openAuth() {
+  if (currentUser) {
+    showLoggedPanel();
+  } else {
+    switchTab('login');
+  }
+  document.getElementById('authDrawer').classList.add('open');
+  document.getElementById('authOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeAuth() {
+  document.getElementById('authDrawer').classList.remove('open');
+  document.getElementById('authOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+/* ---- Switch tab Login / Registrati ---- */
+function switchTab(tab) {
+  document.getElementById('panelLogin').style.display    = tab === 'login'    ? 'block' : 'none';
+  document.getElementById('panelRegister').style.display = tab === 'register' ? 'block' : 'none';
+  document.getElementById('panelLogged').style.display   = 'none';
+  document.getElementById('tabLogin').classList.toggle('active',    tab === 'login');
+  document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
+  document.getElementById('authTabs').style.display = 'flex';
+  clearAuthMessages();
+}
+
+function showLoggedPanel() {
+  document.getElementById('panelLogin').style.display    = 'none';
+  document.getElementById('panelRegister').style.display = 'none';
+  document.getElementById('panelLogged').style.display   = 'block';
+  document.getElementById('authTabs').style.display      = 'none';
+  if (currentUser) {
+    document.getElementById('loggedName').textContent  = currentUser.nome + ' ' + (currentUser.cognome || '');
+    document.getElementById('loggedEmail').textContent = '✉️ ' + currentUser.email;
+    document.getElementById('loggedPhone').textContent = '📱 ' + (currentUser.telefono || '—');
+    document.getElementById('loggedCode').textContent  = currentUser.codice_fedelta || '—';
+  }
+}
+
+function clearAuthMessages() {
+  ['loginMsg', 'registerMsg'].forEach(id => {
+    const el = document.getElementById(id);
+    el.textContent = '';
+    el.className = 'auth-msg';
+  });
+}
+
+function setMsg(id, text, type) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'auth-msg ' + type;
+}
+
+/* ---- UPDATE NAVBAR BUTTON ---- */
+function updateAuthButton() {
+  const btn   = document.getElementById('authBtn');
+  const label = document.getElementById('authBtnLabel');
+  if (currentUser) {
+    label.textContent = '👤 ' + currentUser.nome;
+    btn.classList.add('logged-in');
+  } else {
+    label.textContent = '👤 Accedi';
+    btn.classList.remove('logged-in');
+  }
+}
+
+/* ============================================================
+   REGISTRAZIONE
+============================================================ */
+async function handleRegister() {
+  const nome     = document.getElementById('regNome').value.trim();
+  const cognome  = document.getElementById('regCognome').value.trim();
+  const email    = document.getElementById('regEmail').value.trim().toLowerCase();
+  const telefono = document.getElementById('regPhone').value.trim();
+  const password = document.getElementById('regPassword').value;
+
+  // Validazione base
+  if (!nome || !email || !telefono || !password) {
+    setMsg('registerMsg', '⚠️ Compila tutti i campi obbligatori.', 'error'); return;
+  }
+  if (!email.includes('@')) {
+    setMsg('registerMsg', '⚠️ Email non valida.', 'error'); return;
+  }
+  if (password.length < 6) {
+    setMsg('registerMsg', '⚠️ La password deve avere almeno 6 caratteri.', 'error'); return;
+  }
+
+  const btn = document.getElementById('registerBtn');
+  btn.classList.add('btn-loading');
+  btn.textContent = '⏳ Verifica in corso…';
+  setMsg('registerMsg', '⏳ Controllo disponibilità email…', 'loading');
+
+  try {
+    // Controlla se l'email esiste già
+    const checkRes = await fetch(`${SHEETDB_URL}/search?email=${encodeURIComponent(email)}`);
+    const existing = await checkRes.json();
+    if (Array.isArray(existing) && existing.length > 0) {
+      setMsg('registerMsg', '❌ Email già registrata. Accedi invece.', 'error');
+      btn.classList.remove('btn-loading');
+      btn.textContent = '🍕 Crea Account';
+      return;
+    }
+
+    // Hash password
+    const hashedPw = await simpleHash(password);
+    const codice   = generateLoyaltyCode(nome);
+    const now      = new Date().toISOString().slice(0, 10);
+
+    // POST nuovo utente
+    const res = await fetch(SHEETDB_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        data: [{
+          nome,
+          cognome,
+          email,
+          telefono,
+          password: hashedPw,
+          data_registrazione: now,
+          codice_fedelta: codice
+        }]
+      })
+    });
+
+    const result = await res.json();
+    if (result.created === 1 || res.ok) {
+      currentUser = { nome, cognome, email, telefono, codice_fedelta: codice };
+      updateAuthButton();
+      setMsg('registerMsg', '✅ Account creato! Benvenuto/a ' + nome + '!', 'success');
+      setTimeout(() => { showLoggedPanel(); }, 1200);
+    } else {
+      setMsg('registerMsg', '❌ Errore durante la registrazione. Riprova.', 'error');
+    }
+  } catch (err) {
+    console.error(err);
+    setMsg('registerMsg', '❌ Errore di connessione. Controlla la rete.', 'error');
+  }
+
+  btn.classList.remove('btn-loading');
+  btn.textContent = '🍕 Crea Account';
+}
+
+/* ============================================================
+   LOGIN
+============================================================ */
+async function handleLogin() {
+  const email    = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const password = document.getElementById('loginPassword').value;
+
+  if (!email || !password) {
+    setMsg('loginMsg', '⚠️ Inserisci email e password.', 'error'); return;
+  }
+
+  const btn = document.getElementById('loginBtn');
+  btn.classList.add('btn-loading');
+  btn.textContent = '⏳ Accesso in corso…';
+  setMsg('loginMsg', '⏳ Verifica credenziali…', 'loading');
+
+  try {
+    const hashedPw = await simpleHash(password);
+
+    // Cerca per email
+    const res  = await fetch(`${SHEETDB_URL}/search?email=${encodeURIComponent(email)}`);
+    const rows = await res.json();
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      setMsg('loginMsg', '❌ Email non trovata. Registrati prima.', 'error');
+      btn.classList.remove('btn-loading');
+      btn.textContent = '🔑 Accedi';
+      return;
+    }
+
+    const user = rows[0];
+    if (user.password !== hashedPw) {
+      setMsg('loginMsg', '❌ Password errata.', 'error');
+      btn.classList.remove('btn-loading');
+      btn.textContent = '🔑 Accedi';
+      return;
+    }
+
+    // Login OK
+    currentUser = {
+      nome:             user.nome,
+      cognome:          user.cognome || '',
+      email:            user.email,
+      telefono:         user.telefono || '',
+      codice_fedelta:   user.codice_fedelta || ''
+    };
+    updateAuthButton();
+    setMsg('loginMsg', '✅ Benvenuto/a ' + currentUser.nome + '!', 'success');
+
+    // Pre-compila i campi del checkout con i dati utente
+    setTimeout(() => {
+      if (document.getElementById('firstName')) document.getElementById('firstName').value = currentUser.nome;
+      if (document.getElementById('lastName'))  document.getElementById('lastName').value  = currentUser.cognome;
+      if (document.getElementById('email'))     document.getElementById('email').value     = currentUser.email;
+      if (document.getElementById('phone'))     document.getElementById('phone').value     = currentUser.telefono;
+      showLoggedPanel();
+    }, 900);
+
+  } catch (err) {
+    console.error(err);
+    setMsg('loginMsg', '❌ Errore di connessione. Controlla la rete.', 'error');
+  }
+
+  btn.classList.remove('btn-loading');
+  btn.textContent = '🔑 Accedi';
+}
+
+/* ============================================================
+   LOGOUT
+============================================================ */
+function handleLogout() {
+  currentUser = null;
+  updateAuthButton();
+  closeAuth();
+  // Pulisci i campi checkout
+  ['firstName','lastName','email','phone'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+}

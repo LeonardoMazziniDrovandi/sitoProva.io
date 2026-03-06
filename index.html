@@ -75,6 +75,10 @@
     <small>Pizzeria · Quarrata (PT)</small>
   </div>
   <div class="navbar-actions">
+    <!-- AUTH BUTTON -->
+    <button class="btn-auth" id="authBtn" onclick="openAuth()" aria-label="Accedi o registrati">
+      <span id="authBtnLabel">👤 Accedi</span>
+    </button>
     <button class="btn-cart" id="cartBtn" aria-label="Apri carrello">
       🛒 Carrello
       <span class="cart-count" id="cartCount" style="display:none">0</span>
@@ -477,6 +481,105 @@
     <p class="popup-skip" onclick="closePopup()">No grazie, preferisco pagare il prezzo pieno</p>
   </div>
 </div>
+
+<!-- ================================================
+     AUTH DRAWER – Accedi / Registrati (SheetDB)
+================================================ -->
+<div class="overlay" id="authOverlay" onclick="closeAuth()"></div>
+
+<div class="auth-drawer" id="authDrawer" role="dialog" aria-modal="true" aria-label="Accedi o registrati">
+  <div class="cart-handle"></div>
+  <div class="cart-header">
+    <span class="cart-title" id="authDrawerTitle">👤 Il tuo Account</span>
+    <button class="btn-close-cart" onclick="closeAuth()" aria-label="Chiudi">✕</button>
+  </div>
+
+  <!-- TAB BAR -->
+  <div class="auth-tabs" id="authTabs">
+    <button class="auth-tab active" id="tabLogin"    onclick="switchTab('login')">Accedi</button>
+    <button class="auth-tab"        id="tabRegister" onclick="switchTab('register')">Registrati</button>
+  </div>
+
+  <div class="auth-body">
+
+    <!-- ── LOGIN PANEL ── -->
+    <div id="panelLogin">
+      <div class="form-group">
+        <label class="form-label" for="loginEmail">Email</label>
+        <input class="form-input" type="email" id="loginEmail" placeholder="mario@esempio.it" autocomplete="email" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="loginPassword">Password</label>
+        <input class="form-input" type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" />
+      </div>
+      <p class="auth-msg" id="loginMsg"></p>
+      <button class="btn-checkout" id="loginBtn" onclick="handleLogin()">
+        🔑 Accedi
+      </button>
+      <p style="text-align:center; font-size:0.78rem; color:var(--ash); margin-top:12px;">
+        Non hai un account?
+        <span style="color:var(--ember-light); cursor:pointer; text-decoration:underline;"
+              onclick="switchTab('register')">Registrati gratis</span>
+      </p>
+    </div>
+
+    <!-- ── REGISTER PANEL ── -->
+    <div id="panelRegister" style="display:none">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="regNome">Nome</label>
+          <input class="form-input" type="text" id="regNome" placeholder="Mario" autocomplete="given-name" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="regCognome">Cognome</label>
+          <input class="form-input" type="text" id="regCognome" placeholder="Rossi" autocomplete="family-name" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="regEmail">Email <span style="color:var(--ember)">*</span></label>
+        <input class="form-input" type="email" id="regEmail" placeholder="mario@esempio.it" autocomplete="email" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="regPhone">Cellulare <span style="color:var(--ember)">*</span></label>
+        <input class="form-input" type="tel" id="regPhone" placeholder="+39 333 000 0000" autocomplete="tel" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="regPassword">Password <span style="color:var(--ember)">*</span></label>
+        <input class="form-input" type="password" id="regPassword" placeholder="Min. 6 caratteri" autocomplete="new-password" />
+      </div>
+      <p class="auth-msg" id="registerMsg"></p>
+      <button class="btn-checkout" id="registerBtn" onclick="handleRegister()">
+        🍕 Crea Account
+      </button>
+      <p style="text-align:center; font-size:0.78rem; color:var(--ash); margin-top:12px;">
+        Hai già un account?
+        <span style="color:var(--ember-light); cursor:pointer; text-decoration:underline;"
+              onclick="switchTab('login')">Accedi</span>
+      </p>
+    </div>
+
+    <!-- ── LOGGED IN PANEL ── -->
+    <div id="panelLogged" style="display:none; text-align:center; padding: 20px 0;">
+      <span style="font-size:3.5rem; display:block; margin-bottom:12px;">🍕</span>
+      <h3 style="font-family:var(--font-display); font-size:1.4rem; color:var(--mozzarella); margin-bottom:6px;">
+        Ciao, <span id="loggedName"></span>!
+      </h3>
+      <p style="color:var(--ash); font-size:0.85rem; margin-bottom:4px;" id="loggedEmail"></p>
+      <p style="color:var(--ash); font-size:0.85rem; margin-bottom:24px;" id="loggedPhone"></p>
+      <div style="background:rgba(245,184,65,0.08); border:1px solid rgba(245,184,65,0.2);
+                  border-radius:var(--radius); padding:16px; margin-bottom:20px;">
+        <p style="color:var(--gold); font-size:0.78rem; font-weight:700; letter-spacing:0.1em;
+                  text-transform:uppercase; margin-bottom:4px;">Il tuo codice fedeltà</p>
+        <p style="font-family:'Courier New',monospace; font-size:1.2rem; font-weight:900;
+                  color:var(--cream);" id="loggedCode"></p>
+      </div>
+      <button class="btn-secondary" style="width:100%; margin-bottom:10px;" onclick="handleLogout()">
+        🚪 Esci
+      </button>
+    </div>
+
+  </div><!-- /auth-body -->
+</div><!-- /auth-drawer -->
 
 <!-- Script esterno – caricato in fondo per performance -->
 <script src="script.js"></script>
