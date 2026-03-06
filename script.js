@@ -4,7 +4,8 @@
    Colonne Google Sheet: id | email | password | nome | cognome | telefono | data_registrazione | sconto_usato
 ============================================================ */
 
-const SHEETDB = 'https://sheetdb.io/api/v1/ru78o5h25a0cx';
+const SHEETDB        = 'https://sheetdb.io/api/v1/ru78o5h25a0cx';
+const SHEETDB_ORDERS = 'https://sheetdb.io/api/v1/dknnwb5fpszzz';
 
 /* ============================================================
    MENU DATA
@@ -149,7 +150,16 @@ function updateCartUI() {
   }
 
   empty.style.display = 'none';
-  checkoutSection.style.display = 'block';
+
+  // Mostra login gate oppure checkout in base allo stato login
+  const loginGate = document.getElementById('loginGate');
+  if (!currentUser) {
+    loginGate.style.display    = 'block';
+    checkoutSection.style.display = 'none';
+  } else {
+    loginGate.style.display    = 'none';
+    checkoutSection.style.display = 'block';
+  }
 
   container.querySelectorAll('.cart-item').forEach(el => el.remove());
   Object.values(cart).forEach(item => {
@@ -203,23 +213,47 @@ function selectPayment(btn) {
 /* ============================================================
    COUPON
 ============================================================ */
-function applyCoupon() {
-  const code = document.getElementById('coupon').value.trim().toUpperCase();
-  const msg  = document.getElementById('couponMsg');
+async function applyCoupon() {
+  const code  = document.getElementById('coupon').value.trim().toUpperCase();
+  const msg   = document.getElementById('couponMsg');
+  const phone = document.getElementById('checkPhone').value.trim();
 
-  // Se l'utente è loggato e ha già usato lo sconto, blocca
-  if (currentUser && currentUser.sconto_usato === 'true') {
-    msg.innerHTML = '<span style="color:var(--ember)">⚠️ Hai già usato il codice sconto in passato.</span>';
+  if (code !== 'ROCCO10') {
+    msg.innerHTML = '<span style="color:var(--ember)">❌ Codice non valido.</span>';
     return;
   }
-  if (code === 'ROCCO10' && !discountApplied) {
+  if (discountApplied) {
+    msg.innerHTML = '<span style="color:var(--ash)">Sconto già applicato.</span>';
+    return;
+  }
+
+  // Il numero di telefono è obbligatorio per usare il coupon
+  if (!phone) {
+    msg.innerHTML = '<span style="color:var(--ember)">⚠️ Inserisci prima il numero di cellulare.</span>';
+    document.getElementById('checkPhone').focus();
+    return;
+  }
+
+  msg.innerHTML = '<span style="color:var(--gold)">⏳ Verifica in corso…</span>';
+
+  try {
+    // Controlla su SheetDB se questo numero ha già usato lo sconto
+    const res  = await fetch(`${SHEETDB}/search?telefono=${encodeURIComponent(phone)}`);
+    const rows = await res.json();
+
+    if (Array.isArray(rows) && rows.length > 0 && rows[0].sconto_usato === 'true') {
+      msg.innerHTML = '<span style="color:var(--ember)">❌ Questo numero ha già usato il codice ROCCO10.</span>';
+      return;
+    }
+
+    // Sconto valido
     discountApplied = true;
     msg.innerHTML = '<span style="color:var(--gold)">✓ Sconto del 10% applicato!</span>';
     updateCartUI();
-  } else if (discountApplied) {
-    msg.innerHTML = '<span style="color:var(--ash)">Sconto già applicato.</span>';
-  } else {
-    msg.innerHTML = '<span style="color:var(--ember)">Codice non valido.</span>';
+
+  } catch (err) {
+    console.error(err);
+    msg.innerHTML = '<span style="color:var(--ember)">❌ Errore di connessione. Riprova.</span>';
   }
 }
 
@@ -282,53 +316,150 @@ function claimDiscount() {
 /* ============================================================
    PLACE ORDER
 ============================================================ */
+/* ---- Helper: metodo di pagamento selezionato ---- */
+function getSelectedPayment() {
+  const selected = document.querySelector('#paymentMethods .pay-pill.selected');
+  return selected ? (selected.dataset.method || selected.textContent.trim()) : 'Non specificato';
+}
+
+/* ---- Helper: riepilogo articoli come stringa leggibile ---- */
+function cartItemsToString() {
+  return Object.values(cart)
+    .map(i => `${i.name} x${i.qty} (€${(i.price * i.qty).toFixed(2)})`)
+    .join(' | ');
+}
+
 async function placeOrder() {
+  // 1. GATE: solo utenti loggati
+  if (!currentUser) {
+    closeCart();
+    openAuth();
+    return;
+  }
+
   if (getCartCount() === 0) { alert('Aggiungi almeno un articolo al carrello.'); return; }
 
+  // 2. Validazione campi obbligatori
   const firstName = document.getElementById('firstName').value.trim();
+  const lastName  = document.getElementById('lastName').value.trim();
   const phone     = document.getElementById('checkPhone').value.trim();
   const email     = document.getElementById('checkEmail').value.trim();
+  const notes     = document.getElementById('notes').value.trim();
+  const payment   = getSelectedPayment();
+
+  let address = '';
+  let orario  = '';
+  if (deliveryMode === 'delivery') {
+    const via  = document.getElementById('address').value.trim();
+    const city = document.getElementById('city').value.trim();
+    const cap  = document.getElementById('cap').value.trim();
+    if (!via) { alert('Inserisci l'indirizzo di consegna.'); return; }
+    address = `${via}, ${city} ${cap}`;
+  } else {
+    orario = document.getElementById('pickupTime').value;
+  }
 
   if (!firstName || !phone || !email) {
     alert('Compila i campi obbligatori: nome, cellulare ed email.');
     return;
   }
 
-  // Se l'utente ha usato ROCCO10 e non l'aveva già usato, aggiorna il flag su SheetDB
-  if (discountApplied && currentUser && currentUser.sconto_usato !== 'true') {
-    try {
-      await fetch(`${SHEETDB}/id/${encodeURIComponent(currentUser.id)}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: { sconto_usato: 'true' } })
-      });
-      currentUser.sconto_usato = 'true';
-      updateScontoStatus();
-    } catch(e) { console.warn('Patch sconto_usato fallita:', e); }
+  // 3. Disabilita bottone durante l'invio
+  const btn = document.querySelector('.btn-checkout');
+  btn.disabled = true;
+  btn.textContent = '⏳ Invio ordine…';
+
+  const orderId = 'ORD-' + genId().toUpperCase();
+  const total   = getCartTotal();
+
+  try {
+    // 4. Salva ordine su SheetDB foglio "Ordini"
+    const orderPayload = {
+      data: [{
+        id_ordine:    orderId,
+        id_utente:    currentUser.id,
+        nome:         firstName,
+        cognome:      lastName,
+        telefono:     phone,
+        email:        email,
+        modalita:     deliveryMode === 'delivery' ? 'Consegna' : 'Ritiro',
+        indirizzo:    deliveryMode === 'delivery' ? address : ('Ritiro ore ' + orario),
+        note:         notes,
+        items:        cartItemsToString(),
+        totale:       '€' + total.toFixed(2),
+        sconto:       discountApplied ? 'ROCCO10 -10%' : 'Nessuno',
+        pagamento:    payment,
+        stato:        'In attesa',
+        data_ordine:  new Date().toISOString().slice(0, 16).replace('T', ' ')
+      }]
+    };
+
+    const orderRes = await fetch(SHEETDB_ORDERS, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(orderPayload)
+    });
+    if (!orderRes.ok) throw new Error('Errore salvataggio ordine');
+
+    // 5. Se coupon usato → segna sconto_usato su foglio Utenti
+    if (discountApplied) {
+      try {
+        await fetch(`${SHEETDB}/id/${encodeURIComponent(currentUser.id)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: { sconto_usato: 'true' } })
+        });
+        currentUser.sconto_usato = 'true';
+        updateScontoStatus();
+      } catch(e) { console.warn('Patch sconto_usato fallita:', e); }
+    }
+
+    // 6. Successo
+    closeCart();
+    btn.disabled = false;
+    btn.textContent = '🍕 Conferma Ordine';
+
+    document.body.insertAdjacentHTML('beforeend', `
+      <div id="orderConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:900;display:flex;align-items:center;justify-content:center;padding:24px;">
+        <div style="background:#1e160a;border-radius:24px;padding:36px 24px;text-align:center;max-width:380px;width:100%;">
+          <span style="font-size:4rem;display:block;margin-bottom:16px;">✅</span>
+          <h2 style="font-family:var(--font-display);font-size:1.7rem;font-weight:900;color:var(--mozzarella);margin-bottom:10px;">Ordine Confermato!</h2>
+          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:14px;margin-bottom:16px;">
+            <p style="color:var(--gold);font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;">Numero ordine</p>
+            <p style="font-family:'Courier New',monospace;font-size:1.1rem;font-weight:900;color:var(--cream);">${orderId}</p>
+          </div>
+          <p style="color:var(--ash);font-size:0.85rem;line-height:1.6;margin-bottom:6px;">
+            Ciao <strong style="color:var(--cream)">${firstName}</strong>! Il tuo ordine è stato ricevuto.
+          </p>
+          <p style="color:var(--ash);font-size:0.82rem;margin-bottom:6px;">
+            📱 SMS di conferma al <strong style="color:var(--cream)">${phone}</strong>
+          </p>
+          <p style="color:var(--ash);font-size:0.82rem;margin-bottom:4px;">
+            💳 Pagamento: <strong style="color:var(--cream)">${payment}</strong>
+          </p>
+          <p style="color:var(--ash);font-size:0.82rem;margin-bottom:16px;">
+            ${deliveryMode === 'delivery'
+              ? '🛵 Consegna a: <strong style="color:var(--cream)">' + address + '</strong>'
+              : '🏪 Ritiro: <strong style="color:var(--cream)">' + orario + '</strong>'}
+          </p>
+          <p style="color:var(--gold);font-size:0.9rem;font-weight:700;margin-bottom:20px;">
+            ⏱ Tempo stimato: ${deliveryMode === 'pickup' ? '15–20 min' : '25–35 min'}
+          </p>
+          <button style="background:var(--ember);color:#fff;border-radius:50px;padding:14px 32px;font-weight:700;font-size:0.95rem;width:100%;cursor:pointer;border:none;"
+            onclick="document.getElementById('orderConfirm').remove()">Perfetto! 🍕</button>
+        </div>
+      </div>`);
+
+    cart = {};
+    discountApplied = false;
+    updateCartUI();
+
+  } catch(err) {
+    console.error(err);
+    btn.disabled = false;
+    btn.textContent = '🍕 Conferma Ordine';
+    alert('❌ Errore durante l'invio dell'ordine. Controlla la connessione e riprova.');
   }
-
-  console.log('ORDER PLACED', { cart, deliveryMode, phone, email, total: getCartTotal() });
-  closeCart();
-
-  document.body.insertAdjacentHTML('beforeend', `
-    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:900;display:flex;align-items:center;justify-content:center;padding:24px;" onclick="this.remove()">
-      <div style="background:#1e160a;border-radius:24px;padding:36px 28px;text-align:center;max-width:360px;width:100%;">
-        <span style="font-size:4rem;display:block;margin-bottom:16px;">✅</span>
-        <h2 style="font-family:var(--font-display);font-size:1.7rem;font-weight:900;color:var(--mozzarella);margin-bottom:10px;">Ordine Confermato!</h2>
-        <p style="color:var(--ash);font-size:0.88rem;line-height:1.6;margin-bottom:8px;">
-          Grazie <strong style="color:var(--cream)">${firstName}</strong>!
-          Riceverai un SMS al <strong style="color:var(--cream)">${phone}</strong>.
-        </p>
-        <p style="color:var(--gold);font-size:0.82rem;font-weight:700;">
-          ⏱ Tempo stimato: ${deliveryMode === 'pickup' ? '15–20 min' : '25–35 min'}
-        </p>
-        <button style="margin-top:20px;background:var(--ember);color:#fff;border-radius:50px;padding:14px 32px;font-weight:700;font-size:0.95rem;width:100%;cursor:pointer;border:none;" onclick="this.closest('div[style*=fixed]').remove()">Perfetto!</button>
-      </div>
-    </div>`);
-
-  cart = {};
-  discountApplied = false;
-  updateCartUI();
 }
 
 /* ============================================================
@@ -444,17 +575,23 @@ async function handleRegister() {
   const btn = document.getElementById('registerBtn');
   btn.disabled = true;
   btn.textContent = '⏳ Verifica in corso…';
-  setMsg('registerMsg', '⏳ Controllo email…', 'loading');
+  setMsg('registerMsg', '⏳ Controllo disponibilità…', 'loading');
 
   try {
-    // Verifica duplicato
-    const checkRes = await fetch(`${SHEETDB}/search?email=${encodeURIComponent(email)}`);
-    const existing = await checkRes.json();
-    if (Array.isArray(existing) && existing.length > 0) {
+    // 1. Controlla email duplicata
+    const checkEmail = await fetch(`${SHEETDB}/search?email=${encodeURIComponent(email)}`);
+    const byEmail    = await checkEmail.json();
+    if (Array.isArray(byEmail) && byEmail.length > 0) {
       setMsg('registerMsg', '❌ Email già registrata. Accedi.', 'error');
-      btn.disabled = false;
-      btn.textContent = '🍕 Crea Account';
-      return;
+      btn.disabled = false; btn.textContent = '🍕 Crea Account'; return;
+    }
+
+    // 2. Controlla numero di telefono duplicato
+    const checkPhone = await fetch(`${SHEETDB}/search?telefono=${encodeURIComponent(telefono)}`);
+    const byPhone    = await checkPhone.json();
+    if (Array.isArray(byPhone) && byPhone.length > 0) {
+      setMsg('registerMsg', '❌ Numero di cellulare già registrato.', 'error');
+      btn.disabled = false; btn.textContent = '🍕 Crea Account'; return;
     }
 
     const hashedPw = await sha256(password);
@@ -482,6 +619,7 @@ async function handleRegister() {
       currentUser = { id: newId, nome, cognome, email, telefono, sconto_usato: 'false' };
       updateAuthButton();
       prefillCheckout();
+      updateCartUI();   // aggiorna login gate nel carrello
       setMsg('registerMsg', '✅ Benvenuto/a ' + nome + '! Account creato.', 'success');
       setTimeout(showLoggedPanel, 1200);
     } else {
@@ -544,6 +682,7 @@ async function handleLogin() {
 
     updateAuthButton();
     prefillCheckout();
+    updateCartUI();   // aggiorna login gate nel carrello
     setMsg('loginMsg', '✅ Bentornato/a ' + currentUser.nome + '!', 'success');
     setTimeout(showLoggedPanel, 900);
 

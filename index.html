@@ -258,6 +258,18 @@
         <span>🍕</span>Il tuo carrello è vuoto.<br>Aggiungi qualche pizza dal menù!
       </div>
     </div>
+
+    <!-- LOGIN GATE -->
+    <div id="loginGate" style="display:none">
+      <div class="login-gate-box">
+        <span class="login-gate-icon">🔐</span>
+        <h3 class="login-gate-title">Accedi per ordinare</h3>
+        <p class="login-gate-desc">Devi essere registrato per completare l'ordine.<br>È gratis e richiede solo un minuto!</p>
+        <button class="btn-primary" style="width:100%;margin-bottom:10px;" onclick="closeCart();openAuth();">👤 Accedi o Registrati</button>
+        <p style="text-align:center;font-size:0.75rem;color:var(--ash);">La registrazione ti dà accesso al coupon ROCCO10 e allo storico ordini.</p>
+      </div>
+    </div>
+
     <div class="checkout-section" id="checkoutSection" style="display:none">
       <div class="checkout-title">📋 I tuoi dati</div>
       <div class="form-row">
@@ -320,10 +332,26 @@
       </div>
       <div class="checkout-title" style="margin-top:8px;">💳 Pagamento</div>
       <div class="payment-methods" id="paymentMethods">
-        <button class="pay-pill selected" onclick="selectPayment(this)">💳 Carta</button>
-        <button class="pay-pill" onclick="selectPayment(this)"> Apple Pay</button>
-        <button class="pay-pill" onclick="selectPayment(this)">🅿️ PayPal</button>
-        <button class="pay-pill" onclick="selectPayment(this)">💶 Contanti</button>
+        <button class="pay-pill selected" onclick="selectPayment(this)" data-method="Carta di credito">
+          <span class="pay-icon">💳</span>
+          <span class="pay-label">Carta</span>
+          <span class="pay-sub">Visa / Mastercard</span>
+        </button>
+        <button class="pay-pill" onclick="selectPayment(this)" data-method="Apple Pay">
+          <span class="pay-icon"></span>
+          <span class="pay-label">Apple Pay</span>
+          <span class="pay-sub">Touch / Face ID</span>
+        </button>
+        <button class="pay-pill" onclick="selectPayment(this)" data-method="PayPal">
+          <span class="pay-icon">🅿️</span>
+          <span class="pay-label">PayPal</span>
+          <span class="pay-sub">Conto o carta</span>
+        </button>
+        <button class="pay-pill" onclick="selectPayment(this)" data-method="Contanti">
+          <span class="pay-icon">💶</span>
+          <span class="pay-label">Contanti</span>
+          <span class="pay-sub">Alla consegna</span>
+        </button>
       </div>
       <div class="cart-total">
         <div>

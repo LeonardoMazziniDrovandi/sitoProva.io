@@ -581,3 +581,76 @@ footer { background: var(--deep); border-top: 1px solid rgba(255,255,255,0.06); 
   }
   .cart-drawer.open, .auth-drawer.open { transform: translate(-50%, 0); }
 }
+
+/* ===========================
+   LOGIN GATE (nel carrello)
+=========================== */
+.login-gate-box {
+  background: rgba(255,255,255,0.03);
+  border: 1.5px solid rgba(245,184,65,0.2);
+  border-radius: var(--radius);
+  padding: 28px 20px;
+  text-align: center;
+  margin: 8px 0 16px;
+}
+.login-gate-icon {
+  font-size: 2.8rem;
+  display: block;
+  margin-bottom: 12px;
+}
+.login-gate-title {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--mozzarella);
+  margin-bottom: 8px;
+}
+.login-gate-desc {
+  font-size: 0.82rem;
+  color: var(--ash);
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+/* ===========================
+   PAYMENT PILLS – migliorati
+=========================== */
+.payment-methods {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 16px;
+  margin-bottom: 20px;
+}
+.pay-pill {
+  background: rgba(255,255,255,0.05);
+  border: 1.5px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 12px 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ash);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.18s;
+  cursor: pointer;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.pay-pill:hover {
+  background: rgba(255,255,255,0.09);
+  border-color: rgba(255,255,255,0.22);
+  color: var(--cream);
+}
+.pay-pill.selected {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: rgba(245,184,65,0.1);
+  box-shadow: 0 0 0 1px rgba(245,184,65,0.3);
+}
+.pay-pill .pay-icon { font-size: 1.3rem; }
+.pay-pill .pay-label { font-size: 0.75rem; }
+.pay-pill .pay-sub   { font-size: 0.65rem; color: var(--ash); font-weight: 400; }
+.pay-pill.selected .pay-sub { color: rgba(245,184,65,0.7); }
