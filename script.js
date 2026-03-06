@@ -281,6 +281,7 @@ async function applyCoupon() {
 ============================================================ */
 function openCart() {
   closeAuth();
+  document.getElementById('stickyBar').classList.remove('visible');
   document.getElementById('cartDrawer').classList.add('open');
   document.getElementById('overlay').classList.add('open');
   document.getElementById('overlay').onclick = closeCart;
@@ -291,6 +292,7 @@ function closeCart() {
   document.getElementById('cartDrawer').classList.remove('open');
   document.getElementById('overlay').classList.remove('open');
   document.body.style.overflow = '';
+  if (getCartCount() > 0) document.getElementById('stickyBar').classList.add('visible');
 }
 
 /* ============================================================
