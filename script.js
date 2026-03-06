@@ -377,7 +377,7 @@ async function placeOrder() {
     const orderPayload = {
       data: [{
         id_ordine:    orderId,
-        id_utente:    currentUser.uid || currentUser.telefono,
+        utente_id:    currentUser.uid || currentUser.telefono,
         nome:         firstName,
         cognome:      lastName,
         telefono:     phone,
