@@ -377,7 +377,7 @@ async function placeOrder() {
     const orderPayload = {
       data: [{
         id_ordine:    orderId,
-        id_utente:    currentUser.id,
+        id_utente:    currentUser.uid || currentUser.telefono,
         nome:         firstName,
         cognome:      lastName,
         telefono:     phone,
@@ -404,7 +404,7 @@ async function placeOrder() {
     // 5. Se coupon usato → segna sconto_usato su foglio Utenti
     if (discountApplied) {
       try {
-        await fetch(`${SHEETDB}/id/${encodeURIComponent(currentUser.id)}`, {
+        await fetch(`${SHEETDB}/uid/${encodeURIComponent(currentUser.uid)}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ data: { sconto_usato: 'true' } })
@@ -602,7 +602,7 @@ async function handleRegister() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         data: [{
-          id:                 newId,
+          uid:                newId,
           email:              email,
           password:           hashedPw,
           nome:               nome,
@@ -616,7 +616,7 @@ async function handleRegister() {
 
     const result = await res.json();
     if (result.created === 1 || res.ok) {
-      currentUser = { id: newId, nome, cognome, email, telefono, sconto_usato: 'false' };
+      currentUser = { uid: newId, nome, cognome, email, telefono, sconto_usato: 'false' };
       updateAuthButton();
       prefillCheckout();
       updateCartUI();   // aggiorna login gate nel carrello
@@ -671,8 +671,9 @@ async function handleLogin() {
     }
 
     // Login OK
+    console.log('[AUTH] user da SheetDB:', user);  // debug
     currentUser = {
-      id:           user.id || '',
+      uid:          user.uid || '',
       nome:         user.nome || '',
       cognome:      user.cognome || '',
       email:        user.email,
