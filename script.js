@@ -545,38 +545,13 @@ function renderPayPalButtons() {
       const form = validateOrderForm();
       if (!form) return Promise.reject(new Error('Form non valido'));
       const total = getCartTotal();
-
-      // PayPal vuole solo ASCII, max 127 chars, niente simboli speciali
-      const itemsClean = Object.values(cart)
-        .map(i => i.name + ' x' + i.qty)
-        .join(', ')
-        .replace(/[^a-zA-Z0-9 ,.\-_]/g, '')
-        .substring(0, 120);
-
+      // Minimo assoluto richiesto da PayPal Orders v2
       return actions.order.create({
-        intent: 'CAPTURE',
         purchase_units: [{
-          reference_id: 'pizzeria-da-rocco',
-          description: 'Pizza Da Rocco: ' + itemsClean,
           amount: {
             currency_code: 'EUR',
-            value: total.toFixed(2),
-            breakdown: {
-              item_total: {
-                currency_code: 'EUR',
-                value: total.toFixed(2)
-              }
-            }
-          },
-          items: Object.values(cart).map(i => ({
-            name: i.name.substring(0, 127),
-            unit_amount: {
-              currency_code: 'EUR',
-              value: (discountApplied ? i.price * 0.9 : i.price).toFixed(2)
-            },
-            quantity: String(i.qty),
-            category: 'PHYSICAL_GOODS'
-          }))
+            value: total.toFixed(2)
+          }
         }]
       });
     },
