@@ -50,6 +50,20 @@ let discountApplied = false;
 let popupShown      = false;
 let currentUser     = null;   // oggetto utente loggato
 
+/* ---- Persistenza sessione via localStorage ---- */
+function saveSession(user) {
+  try { localStorage.setItem('rocco_user', JSON.stringify(user)); } catch(e) {}
+}
+function clearSession() {
+  try { localStorage.removeItem('rocco_user'); } catch(e) {}
+}
+function loadSession() {
+  try {
+    const raw = localStorage.getItem('rocco_user');
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) { return null; }
+}
+
 /* ============================================================
    UTILITY
 ============================================================ */
@@ -222,6 +236,11 @@ async function applyCoupon() {
     msg.innerHTML = '<span style="color:var(--ember)">❌ Codice non valido.</span>';
     return;
   }
+  // Se l'utente loggato ha già usato il coupon, blocca subito senza chiamata API
+  if (currentUser && currentUser.sconto_usato?.toLowerCase() === 'true') {
+    msg.innerHTML = '<span style="color:var(--ember)">❌ Codice sconto già usato.</span>';
+    return;
+  }
   if (discountApplied) {
     msg.innerHTML = '<span style="color:var(--ash)">Sconto già applicato.</span>';
     return;
@@ -241,8 +260,8 @@ async function applyCoupon() {
     const res  = await fetch(`${SHEETDB}/search?telefono=${encodeURIComponent(phone)}`);
     const rows = await res.json();
 
-    if (Array.isArray(rows) && rows.length > 0 && rows[0].sconto_usato === 'true') {
-      msg.innerHTML = '<span style="color:var(--ember)">❌ Questo numero ha già usato il codice ROCCO10.</span>';
+    if (Array.isArray(rows) && rows.length > 0 && rows[0].sconto_usato?.toLowerCase() === 'true') {
+      msg.innerHTML = '<span style="color:var(--ember)">❌ Codice sconto già usato.</span>';
       return;
     }
 
@@ -530,7 +549,7 @@ function showLoggedPanel() {
 function updateScontoStatus() {
   const el = document.getElementById('scontoStatus');
   if (!el) return;
-  if (currentUser && currentUser.sconto_usato === 'true') {
+  if (currentUser && currentUser.sconto_usato?.toLowerCase() === 'true') {
     el.textContent = '✓ Sconto già utilizzato';
     el.style.color = 'var(--ash)';
   } else {
@@ -540,14 +559,17 @@ function updateScontoStatus() {
 }
 
 function updateAuthButton() {
-  const btn   = document.getElementById('authBtn');
-  const label = document.getElementById('authBtnLabel');
+  const btn     = document.getElementById('authBtn');
+  const label   = document.getElementById('authBtnLabel');
+  const logoutBtn = document.getElementById('logoutBtn');
   if (currentUser) {
     label.textContent = '👤 ' + currentUser.nome;
     btn.classList.add('logged-in');
+    if (logoutBtn) logoutBtn.style.display = 'flex';
   } else {
     label.textContent = '👤 Accedi';
     btn.classList.remove('logged-in');
+    if (logoutBtn) logoutBtn.style.display = 'none';
   }
 }
 
@@ -617,6 +639,7 @@ async function handleRegister() {
     const result = await res.json();
     if (result.created === 1 || res.ok) {
       currentUser = { uid: newId, nome, cognome, email, telefono, sconto_usato: 'false' };
+      saveSession(currentUser);
       updateAuthButton();
       prefillCheckout();
       updateCartUI();   // aggiorna login gate nel carrello
@@ -681,6 +704,7 @@ async function handleLogin() {
       sconto_usato: user.sconto_usato || 'false'
     };
 
+    saveSession(currentUser);
     updateAuthButton();
     prefillCheckout();
     updateCartUI();   // aggiorna login gate nel carrello
@@ -701,6 +725,7 @@ async function handleLogin() {
 ============================================================ */
 function handleLogout() {
   currentUser = null;
+  clearSession();
   updateAuthButton();
   closeAuth();
   // Pulisce il checkout
@@ -731,6 +756,14 @@ function prefillCheckout() {
    INIT
 ============================================================ */
 document.addEventListener('DOMContentLoaded', () => {
+  // Ripristina sessione dal localStorage
+  const saved = loadSession();
+  if (saved) {
+    currentUser = saved;
+    updateAuthButton();
+    prefillCheckout();
+  }
+
   renderMenu('classiche');
 
   document.getElementById('heroOrderBtn').addEventListener('click', () => {

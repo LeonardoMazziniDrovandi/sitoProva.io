@@ -654,3 +654,24 @@ footer { background: var(--deep); border-top: 1px solid rgba(255,255,255,0.06); 
 .pay-pill .pay-label { font-size: 0.75rem; }
 .pay-pill .pay-sub   { font-size: 0.65rem; color: var(--ash); font-weight: 400; }
 .pay-pill.selected .pay-sub { color: rgba(245,184,65,0.7); }
+
+/* ===========================
+   LOGOUT BUTTON (navbar)
+=========================== */
+.btn-logout {
+  background: rgba(232, 76, 12, 0.12);
+  color: var(--ember-light);
+  border: 1.5px solid rgba(232, 76, 12, 0.25);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  font-size: 1rem;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, transform 0.15s;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.btn-logout:hover  { background: rgba(232, 76, 12, 0.22); }
+.btn-logout:active { transform: scale(0.92); }
