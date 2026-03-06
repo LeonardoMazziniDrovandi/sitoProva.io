@@ -568,14 +568,37 @@ function renderPayPalButtons() {
       console.log('PayPal: pagamento annullato');
     },
 
-    // Errore PayPal
+    // Errore PayPal – log dettagliato
     onError: (err) => {
-      console.error('PayPal error:', err);
-      alert('❌ Errore PayPal. Riprova o scegli un altro metodo di pagamento.');
+      console.error('=== PAYPAL ERROR ===');
+      console.error(err);
+      try { console.error(JSON.stringify(err, null, 2)); } catch(e) {}
+
+      // Mostra dettaglio all'utente invece del messaggio generico
+      const msg = err && err.message ? err.message : String(err);
+      const container = document.getElementById('paypalButtonContainer');
+      if (container) {
+        container.innerHTML = `
+          <div style="background:rgba(232,76,12,0.1);border:1px solid rgba(232,76,12,0.3);
+                      border-radius:12px;padding:14px;font-size:0.8rem;color:var(--ember-light);
+                      text-align:center;margin-bottom:8px;">
+            <strong>Errore PayPal:</strong><br>
+            <span style="font-size:0.72rem;color:var(--ash);">${msg}</span><br><br>
+            <button onclick="document.getElementById('paypalButtonContainer').innerHTML='';renderPayPalButtons();"
+              style="background:var(--ember);color:#fff;border-radius:50px;padding:8px 20px;
+                     font-size:0.8rem;font-weight:700;border:none;cursor:pointer;">
+              Riprova
+            </button>
+          </div>`;
+      }
     }
   }).render('#paypalButtonContainer');
-  }).catch(() => {
-    alert('Errore caricamento PayPal. Controlla la connessione.');
+  }).catch((sdkErr) => {
+    console.error('PayPal SDK load error:', sdkErr);
+    const container = document.getElementById('paypalButtonContainer');
+    if (container) {
+      container.innerHTML = '<p style="color:var(--ember);font-size:0.8rem;text-align:center;">Errore caricamento PayPal SDK. Controlla la console.</p>';
+    }
   });
 }
 
