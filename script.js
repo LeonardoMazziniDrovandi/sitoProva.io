@@ -1,9 +1,14 @@
 /* ============================================================
    script.js – Pizzeria Da Rocco, Quarrata (51039)
-   Gestisce: menù dinamico, carrello, checkout, popup CRO
+   SheetDB API: https://sheetdb.io/api/v1/ru78o5h25a0cx
+   Colonne Google Sheet: id | email | password | nome | cognome | telefono | data_registrazione | sconto_usato
 ============================================================ */
 
-/* ---- MENU DATA ---- */
+const SHEETDB = 'https://sheetdb.io/api/v1/ru78o5h25a0cx';
+
+/* ============================================================
+   MENU DATA
+============================================================ */
 const menuData = {
   classiche: [
     { id:1,  name:"Margherita",       emoji:"🍅", price:7.50,  desc:"Pomodoro San Marzano DOP, fior di latte, basilico fresco, olio EVO", badge:"Bestseller" },
@@ -29,17 +34,40 @@ const menuData = {
     { id:15, name:"Mele e Cannella",  emoji:"🍎", price:6.00, desc:"Mele Golden, cannella, zucchero di canna, mascarpone" },
   ],
   bevande: [
-    { id:16, name:"Coca-Cola",        emoji:"🥤", price:2.50, desc:"Lattina 33cl" },
-    { id:17, name:"Acqua Naturale",   emoji:"💧", price:1.50, desc:"0,5 lt" },
-    { id:18, name:"Birra Moretti",    emoji:"🍺", price:3.00, desc:"Bottiglia 33cl" },
+    { id:16, name:"Coca-Cola",       emoji:"🥤", price:2.50, desc:"Lattina 33cl" },
+    { id:17, name:"Acqua Naturale",  emoji:"💧", price:1.50, desc:"0,5 lt" },
+    { id:18, name:"Birra Moretti",   emoji:"🍺", price:3.00, desc:"Bottiglia 33cl" },
   ]
 };
 
-/* ---- STATE ---- */
+/* ============================================================
+   STATE
+============================================================ */
 let cart            = {};
 let deliveryMode    = 'delivery';
 let discountApplied = false;
 let popupShown      = false;
+let currentUser     = null;   // oggetto utente loggato
+
+/* ============================================================
+   UTILITY
+============================================================ */
+
+/** SHA-256 hash – usare bcrypt lato server in produzione */
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Genera un ID univoco semplice */
+function genId() {
+  return Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+}
+
+/** Formatta la data di oggi come YYYY-MM-DD */
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
 
 /* ============================================================
    MENU RENDERING
@@ -60,9 +88,7 @@ function renderMenu(cat) {
       </div>
       <div class="pizza-add-col">
         <span class="pizza-price">€${item.price.toFixed(2).replace('.', ',')}</span>
-        <button class="btn-add"
-          onclick="addToCart(${item.id})"
-          aria-label="Aggiungi ${item.name} al carrello">+</button>
+        <button class="btn-add" onclick="addToCart(${item.id})" aria-label="Aggiungi ${item.name}">+</button>
       </div>`;
     grid.appendChild(card);
   });
@@ -84,7 +110,6 @@ function addToCart(id) {
   cart[id].qty++;
   updateCartUI();
   showStickyBar();
-  // Mostra popup sconto al primo articolo aggiunto
   if (!popupShown) setTimeout(showPopup, 800);
 }
 
@@ -109,7 +134,7 @@ function updateCartUI() {
   // Badge navbar
   const cc = document.getElementById('cartCount');
   cc.textContent = count;
-  cc.style.display = count > 0 ? 'flex' : 'none';
+  cc.classList.toggle('visible', count > 0);
 
   const container       = document.getElementById('cartItems');
   const empty           = document.getElementById('cartEmpty');
@@ -126,7 +151,6 @@ function updateCartUI() {
   empty.style.display = 'none';
   checkoutSection.style.display = 'block';
 
-  // Rebuild cart item list
   container.querySelectorAll('.cart-item').forEach(el => el.remove());
   Object.values(cart).forEach(item => {
     const el = document.createElement('div');
@@ -141,29 +165,23 @@ function updateCartUI() {
         </div>
       </div>
       <div class="cart-item-controls">
-        <button class="qty-btn" onclick="changeQty(${item.id}, -1)" aria-label="Rimuovi uno">−</button>
+        <button class="qty-btn" onclick="changeQty(${item.id}, -1)">−</button>
         <span class="qty-num">${item.qty}</span>
-        <button class="qty-btn" onclick="changeQty(${item.id}, 1)"  aria-label="Aggiungi uno">+</button>
+        <button class="qty-btn" onclick="changeQty(${item.id}, 1)">+</button>
       </div>`;
     container.insertBefore(el, document.getElementById('cartEmpty'));
   });
 
-  // Totals
   const total = getCartTotal();
   document.getElementById('cartTotal').textContent = '€' + total.toFixed(2).replace('.', ',');
-
   const disc = document.getElementById('discountLine');
-  disc.innerHTML = discountApplied
-    ? `<span style="color:var(--gold)">✓ Sconto ROCCO10 (-10%) applicato</span>`
-    : '';
-
-  // Sticky bar price badge
+  disc.innerHTML = discountApplied ? `<span style="color:var(--gold)">✓ Sconto ROCCO10 (-10%) applicato</span>` : '';
   const sp = document.getElementById('stickyPrice');
   if (sp) sp.textContent = '€' + total.toFixed(2).replace('.', ',');
 }
 
 /* ============================================================
-   DELIVERY / PICKUP TOGGLE  (Phase 2 – Click & Collect)
+   DELIVERY / PICKUP
 ============================================================ */
 function setMode(mode) {
   deliveryMode = mode;
@@ -171,12 +189,11 @@ function setMode(mode) {
   document.getElementById('togglePickup').classList.toggle('active',   mode === 'pickup');
   document.getElementById('deliveryAddressBlock').style.display = mode === 'delivery' ? 'block' : 'none';
   document.getElementById('pickupTimeBlock').style.display      = mode === 'pickup'   ? 'block' : 'none';
-  document.getElementById('estimatedTime').textContent =
-    mode === 'delivery' ? '20–30 minuti' : '15–20 minuti';
+  document.getElementById('estimatedTime').textContent = mode === 'delivery' ? '20–30 minuti' : '15–20 minuti';
 }
 
 /* ============================================================
-   PAYMENT SELECTION  (Phase 2 – gateway diretti)
+   PAYMENT
 ============================================================ */
 function selectPayment(btn) {
   document.querySelectorAll('#paymentMethods .pay-pill').forEach(b => b.classList.remove('selected'));
@@ -184,11 +201,17 @@ function selectPayment(btn) {
 }
 
 /* ============================================================
-   COUPON  (Phase 3 – CRO)
+   COUPON
 ============================================================ */
 function applyCoupon() {
   const code = document.getElementById('coupon').value.trim().toUpperCase();
   const msg  = document.getElementById('couponMsg');
+
+  // Se l'utente è loggato e ha già usato lo sconto, blocca
+  if (currentUser && currentUser.sconto_usato === 'true') {
+    msg.innerHTML = '<span style="color:var(--ember)">⚠️ Hai già usato il codice sconto in passato.</span>';
+    return;
+  }
   if (code === 'ROCCO10' && !discountApplied) {
     discountApplied = true;
     msg.innerHTML = '<span style="color:var(--gold)">✓ Sconto del 10% applicato!</span>';
@@ -204,8 +227,10 @@ function applyCoupon() {
    CART DRAWER
 ============================================================ */
 function openCart() {
+  closeAuth();
   document.getElementById('cartDrawer').classList.add('open');
   document.getElementById('overlay').classList.add('open');
+  document.getElementById('overlay').onclick = closeCart;
   document.body.style.overflow = 'hidden';
 }
 
@@ -216,32 +241,23 @@ function closeCart() {
 }
 
 /* ============================================================
-   STICKY ORDER BAR
+   STICKY BAR
 ============================================================ */
 function showStickyBar() {
   document.getElementById('stickyBar').classList.add('visible');
 }
 
-// Nascondi la sticky bar quando l'hero è visibile
-const heroObserver = new IntersectionObserver(([entry]) => {
-  document.getElementById('stickyBar')
-    .classList.toggle('visible', !entry.isIntersecting && getCartCount() > 0);
-}, { threshold: 0.1 });
-heroObserver.observe(document.querySelector('.hero'));
-
 /* ============================================================
-   POPUP SCONTO PRIMO ORDINE  (Phase 3 – lead capture)
+   POPUP SCONTO
 ============================================================ */
 function showPopup() {
   if (popupShown) return;
   popupShown = true;
   document.getElementById('popupOverlay').classList.add('open');
 }
-
 function closePopup() {
   document.getElementById('popupOverlay').classList.remove('open');
 }
-
 function claimDiscount() {
   const emailInput = document.getElementById('popupEmail');
   const email = emailInput.value.trim();
@@ -249,183 +265,109 @@ function claimDiscount() {
     emailInput.style.borderColor = 'var(--ember)';
     return;
   }
-
-  // → In produzione: POST a CRM / Mailchimp / Klaviyo endpoint
-  console.log('Lead email captured:', email);
-
-  // Mostra conferma inline
+  console.log('Lead email popup:', email);
   document.getElementById('popupOverlay').innerHTML = `
-    <div class="popup-card" style="text-align:center; padding:40px 24px;">
-      <span style="font-size:4rem; display:block; margin-bottom:16px;">🎉</span>
-      <h2 style="font-family:var(--font-display); font-size:1.6rem; font-weight:900;
-          color:var(--mozzarella); margin-bottom:10px;">Codice inviato!</h2>
-      <p style="color:var(--ash); font-size:0.88rem; line-height:1.6; margin-bottom:24px;">
-        Controlla la tua email. Il tuo codice è
-        <strong style="color:var(--gold)">ROCCO10</strong> —
-        inseriscilo al checkout per il 10% di sconto.
+    <div class="popup-card" style="text-align:center;padding:40px 24px;">
+      <span style="font-size:4rem;display:block;margin-bottom:16px;">🎉</span>
+      <h2 style="font-family:var(--font-display);font-size:1.6rem;font-weight:900;color:var(--mozzarella);margin-bottom:10px;">Codice inviato!</h2>
+      <p style="color:var(--ash);font-size:0.88rem;line-height:1.6;margin-bottom:24px;">
+        Controlla la tua email. Usa il codice <strong style="color:var(--gold)">ROCCO10</strong> al checkout.
       </p>
-      <button class="btn-primary" onclick="closePopup()" style="width:100%;">
-        Vai al Menù 🍕
-      </button>
+      <button class="btn-primary" onclick="closePopup()" style="width:100%;">Vai al Menù 🍕</button>
     </div>`;
   document.getElementById('popupOverlay').classList.add('open');
-  // Chiudi automaticamente dopo 5 secondi
   setTimeout(closePopup, 5000);
 }
 
 /* ============================================================
-   PLACE ORDER  (Phase 2 + Phase 3 – acquisizione dati)
+   PLACE ORDER
 ============================================================ */
-function placeOrder() {
-  if (getCartCount() === 0) {
-    alert('Aggiungi almeno un articolo al carrello.');
-    return;
-  }
+async function placeOrder() {
+  if (getCartCount() === 0) { alert('Aggiungi almeno un articolo al carrello.'); return; }
 
   const firstName = document.getElementById('firstName').value.trim();
-  const phone     = document.getElementById('phone').value.trim();
-  const email     = document.getElementById('email').value.trim();
+  const phone     = document.getElementById('checkPhone').value.trim();
+  const email     = document.getElementById('checkEmail').value.trim();
 
   if (!firstName || !phone || !email) {
     alert('Compila i campi obbligatori: nome, cellulare ed email.');
     return;
   }
 
-  // → In produzione: POST a backend ordini (Node/PHP) + Stripe / PayPal SDK
-  console.log('ORDER PLACED', {
-    cart,
-    deliveryMode,
-    phone,
-    email,
-    total: getCartTotal(),
-    discountApplied
-  });
+  // Se l'utente ha usato ROCCO10 e non l'aveva già usato, aggiorna il flag su SheetDB
+  if (discountApplied && currentUser && currentUser.sconto_usato !== 'true') {
+    try {
+      await fetch(`${SHEETDB}/id/${encodeURIComponent(currentUser.id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { sconto_usato: 'true' } })
+      });
+      currentUser.sconto_usato = 'true';
+      updateScontoStatus();
+    } catch(e) { console.warn('Patch sconto_usato fallita:', e); }
+  }
 
+  console.log('ORDER PLACED', { cart, deliveryMode, phone, email, total: getCartTotal() });
   closeCart();
 
-  // Mostra schermata di conferma
   document.body.insertAdjacentHTML('beforeend', `
-    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:900;
-        display:flex;align-items:center;justify-content:center;padding:24px;"
-        onclick="this.remove()">
-      <div style="background:#1e160a;border-radius:24px;padding:36px 28px;
-          text-align:center;max-width:360px;width:100%;">
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:900;display:flex;align-items:center;justify-content:center;padding:24px;" onclick="this.remove()">
+      <div style="background:#1e160a;border-radius:24px;padding:36px 28px;text-align:center;max-width:360px;width:100%;">
         <span style="font-size:4rem;display:block;margin-bottom:16px;">✅</span>
-        <h2 style="font-family:var(--font-display);font-size:1.7rem;font-weight:900;
-            color:var(--mozzarella);margin-bottom:10px;">Ordine Confermato!</h2>
+        <h2 style="font-family:var(--font-display);font-size:1.7rem;font-weight:900;color:var(--mozzarella);margin-bottom:10px;">Ordine Confermato!</h2>
         <p style="color:var(--ash);font-size:0.88rem;line-height:1.6;margin-bottom:8px;">
           Grazie <strong style="color:var(--cream)">${firstName}</strong>!
-          Riceverai un SMS al <strong style="color:var(--cream)">${phone}</strong>
-          con aggiornamenti sull'ordine.
+          Riceverai un SMS al <strong style="color:var(--cream)">${phone}</strong>.
         </p>
         <p style="color:var(--gold);font-size:0.82rem;font-weight:700;">
           ⏱ Tempo stimato: ${deliveryMode === 'pickup' ? '15–20 min' : '25–35 min'}
         </p>
-        <button style="margin-top:20px;background:var(--ember);color:#fff;border-radius:50px;
-            padding:14px 32px;font-weight:700;font-size:0.95rem;width:100%;"
-            onclick="this.closest('div[style*=fixed]').remove()">
-          Perfetto!
-        </button>
+        <button style="margin-top:20px;background:var(--ember);color:#fff;border-radius:50px;padding:14px 32px;font-weight:700;font-size:0.95rem;width:100%;cursor:pointer;border:none;" onclick="this.closest('div[style*=fixed]').remove()">Perfetto!</button>
       </div>
     </div>`);
 
-  // Reset stato
   cart = {};
   discountApplied = false;
   updateCartUI();
 }
 
 /* ============================================================
-   INIT
+   AUTH – Apri / Chiudi drawer
 ============================================================ */
-document.addEventListener('DOMContentLoaded', () => {
-  // Render menù iniziale
-  renderMenu('classiche');
-
-  // CTA hero → scroll al menù
-  document.getElementById('heroOrderBtn')
-    .addEventListener('click', () => {
-      document.getElementById('menu').scrollIntoView({ behavior: 'smooth' });
-    });
-
-  // Apri carrello dal pulsante navbar
-  document.getElementById('cartBtn')
-    .addEventListener('click', openCart);
-
-  // Popup sconto dopo 8 secondi se carrello vuoto (Phase 3 – retargeting on-site)
-  setTimeout(() => {
-    if (!popupShown && getCartCount() === 0) showPopup();
-  }, 8000);
-});
-
-/* ============================================================
-   AUTH – Accedi / Registrati collegato a SheetDB
-   API: https://sheetdb.io/api/v1/ru78o5h25a0cx
-   Colonne Google Sheet attese:
-     id | nome | cognome | email | telefono | password | data_registrazione | codice_fedelta
-============================================================ */
-
-const SHEETDB_URL = 'https://sheetdb.io/api/v1/ru78o5h25a0cx';
-
-/* ---- Sessione utente in memoria ---- */
-let currentUser = null;
-
-/* ---- Utility: genera codice fedeltà ---- */
-function generateLoyaltyCode(nome) {
-  const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
-  return 'ROC-' + nome.substring(0, 3).toUpperCase() + rand;
-}
-
-/* ---- Utility: semplice hash (non usare in produzione – usare bcrypt lato server) ---- */
-async function simpleHash(str) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-/* ---- Apri / Chiudi auth drawer ---- */
 function openAuth() {
+  closeCart();
   if (currentUser) {
     showLoggedPanel();
   } else {
     switchTab('login');
   }
   document.getElementById('authDrawer').classList.add('open');
-  document.getElementById('authOverlay').classList.add('open');
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('overlay').onclick = closeAuth;
   document.body.style.overflow = 'hidden';
 }
 
 function closeAuth() {
   document.getElementById('authDrawer').classList.remove('open');
-  document.getElementById('authOverlay').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
   document.body.style.overflow = '';
 }
 
-/* ---- Switch tab Login / Registrati ---- */
+/* ============================================================
+   AUTH – Switch tab
+============================================================ */
 function switchTab(tab) {
   document.getElementById('panelLogin').style.display    = tab === 'login'    ? 'block' : 'none';
   document.getElementById('panelRegister').style.display = tab === 'register' ? 'block' : 'none';
   document.getElementById('panelLogged').style.display   = 'none';
+  document.getElementById('authTabs').style.display      = 'flex';
   document.getElementById('tabLogin').classList.toggle('active',    tab === 'login');
   document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
-  document.getElementById('authTabs').style.display = 'flex';
-  clearAuthMessages();
+  clearAuthMsgs();
 }
 
-function showLoggedPanel() {
-  document.getElementById('panelLogin').style.display    = 'none';
-  document.getElementById('panelRegister').style.display = 'none';
-  document.getElementById('panelLogged').style.display   = 'block';
-  document.getElementById('authTabs').style.display      = 'none';
-  if (currentUser) {
-    document.getElementById('loggedName').textContent  = currentUser.nome + ' ' + (currentUser.cognome || '');
-    document.getElementById('loggedEmail').textContent = '✉️ ' + currentUser.email;
-    document.getElementById('loggedPhone').textContent = '📱 ' + (currentUser.telefono || '—');
-    document.getElementById('loggedCode').textContent  = currentUser.codice_fedelta || '—';
-  }
-}
-
-function clearAuthMessages() {
-  ['loginMsg', 'registerMsg'].forEach(id => {
+function clearAuthMsgs() {
+  ['loginMsg','registerMsg'].forEach(id => {
     const el = document.getElementById(id);
     el.textContent = '';
     el.className = 'auth-msg';
@@ -438,7 +380,34 @@ function setMsg(id, text, type) {
   el.className = 'auth-msg ' + type;
 }
 
-/* ---- UPDATE NAVBAR BUTTON ---- */
+/* ============================================================
+   AUTH – Panel loggato
+============================================================ */
+function showLoggedPanel() {
+  document.getElementById('panelLogin').style.display    = 'none';
+  document.getElementById('panelRegister').style.display = 'none';
+  document.getElementById('panelLogged').style.display   = 'block';
+  document.getElementById('authTabs').style.display      = 'none';
+  if (currentUser) {
+    document.getElementById('loggedName').textContent  = currentUser.nome + (currentUser.cognome ? ' ' + currentUser.cognome : '');
+    document.getElementById('loggedEmail').textContent = '✉️ ' + currentUser.email;
+    document.getElementById('loggedPhone').textContent = currentUser.telefono ? '📱 ' + currentUser.telefono : '';
+    updateScontoStatus();
+  }
+}
+
+function updateScontoStatus() {
+  const el = document.getElementById('scontoStatus');
+  if (!el) return;
+  if (currentUser && currentUser.sconto_usato === 'true') {
+    el.textContent = '✓ Sconto già utilizzato';
+    el.style.color = 'var(--ash)';
+  } else {
+    el.textContent = '🎁 Non ancora utilizzato — usalo al prossimo ordine!';
+    el.style.color = 'var(--gold)';
+  }
+}
+
 function updateAuthButton() {
   const btn   = document.getElementById('authBtn');
   const label = document.getElementById('authBtnLabel');
@@ -452,7 +421,8 @@ function updateAuthButton() {
 }
 
 /* ============================================================
-   REGISTRAZIONE
+   AUTH – REGISTRAZIONE
+   Campi inviati: id | email | password | nome | cognome | telefono | data_registrazione | sconto_usato
 ============================================================ */
 async function handleRegister() {
   const nome     = document.getElementById('regNome').value.trim();
@@ -461,7 +431,6 @@ async function handleRegister() {
   const telefono = document.getElementById('regPhone').value.trim();
   const password = document.getElementById('regPassword').value;
 
-  // Validazione base
   if (!nome || !email || !telefono || !password) {
     setMsg('registerMsg', '⚠️ Compila tutti i campi obbligatori.', 'error'); return;
   }
@@ -469,53 +438,52 @@ async function handleRegister() {
     setMsg('registerMsg', '⚠️ Email non valida.', 'error'); return;
   }
   if (password.length < 6) {
-    setMsg('registerMsg', '⚠️ La password deve avere almeno 6 caratteri.', 'error'); return;
+    setMsg('registerMsg', '⚠️ Password troppo corta (min. 6 caratteri).', 'error'); return;
   }
 
   const btn = document.getElementById('registerBtn');
-  btn.classList.add('btn-loading');
+  btn.disabled = true;
   btn.textContent = '⏳ Verifica in corso…';
-  setMsg('registerMsg', '⏳ Controllo disponibilità email…', 'loading');
+  setMsg('registerMsg', '⏳ Controllo email…', 'loading');
 
   try {
-    // Controlla se l'email esiste già
-    const checkRes = await fetch(`${SHEETDB_URL}/search?email=${encodeURIComponent(email)}`);
+    // Verifica duplicato
+    const checkRes = await fetch(`${SHEETDB}/search?email=${encodeURIComponent(email)}`);
     const existing = await checkRes.json();
     if (Array.isArray(existing) && existing.length > 0) {
-      setMsg('registerMsg', '❌ Email già registrata. Accedi invece.', 'error');
-      btn.classList.remove('btn-loading');
+      setMsg('registerMsg', '❌ Email già registrata. Accedi.', 'error');
+      btn.disabled = false;
       btn.textContent = '🍕 Crea Account';
       return;
     }
 
-    // Hash password
-    const hashedPw = await simpleHash(password);
-    const codice   = generateLoyaltyCode(nome);
-    const now      = new Date().toISOString().slice(0, 10);
+    const hashedPw = await sha256(password);
+    const newId    = genId();
 
-    // POST nuovo utente
-    const res = await fetch(SHEETDB_URL, {
+    const res = await fetch(SHEETDB, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         data: [{
-          nome,
-          cognome,
-          email,
-          telefono,
-          password: hashedPw,
-          data_registrazione: now,
-          codice_fedelta: codice
+          id:                 newId,
+          email:              email,
+          password:           hashedPw,
+          nome:               nome,
+          cognome:            cognome,
+          telefono:           telefono,
+          data_registrazione: today(),
+          sconto_usato:       'false'
         }]
       })
     });
 
     const result = await res.json();
     if (result.created === 1 || res.ok) {
-      currentUser = { nome, cognome, email, telefono, codice_fedelta: codice };
+      currentUser = { id: newId, nome, cognome, email, telefono, sconto_usato: 'false' };
       updateAuthButton();
-      setMsg('registerMsg', '✅ Account creato! Benvenuto/a ' + nome + '!', 'success');
-      setTimeout(() => { showLoggedPanel(); }, 1200);
+      prefillCheckout();
+      setMsg('registerMsg', '✅ Benvenuto/a ' + nome + '! Account creato.', 'success');
+      setTimeout(showLoggedPanel, 1200);
     } else {
       setMsg('registerMsg', '❌ Errore durante la registrazione. Riprova.', 'error');
     }
@@ -524,12 +492,12 @@ async function handleRegister() {
     setMsg('registerMsg', '❌ Errore di connessione. Controlla la rete.', 'error');
   }
 
-  btn.classList.remove('btn-loading');
+  btn.disabled = false;
   btn.textContent = '🍕 Crea Account';
 }
 
 /* ============================================================
-   LOGIN
+   AUTH – LOGIN
 ============================================================ */
 async function handleLogin() {
   const email    = document.getElementById('loginEmail').value.trim().toLowerCase();
@@ -540,20 +508,18 @@ async function handleLogin() {
   }
 
   const btn = document.getElementById('loginBtn');
-  btn.classList.add('btn-loading');
-  btn.textContent = '⏳ Accesso in corso…';
+  btn.disabled = true;
+  btn.textContent = '⏳ Accesso…';
   setMsg('loginMsg', '⏳ Verifica credenziali…', 'loading');
 
   try {
-    const hashedPw = await simpleHash(password);
-
-    // Cerca per email
-    const res  = await fetch(`${SHEETDB_URL}/search?email=${encodeURIComponent(email)}`);
-    const rows = await res.json();
+    const hashedPw = await sha256(password);
+    const res      = await fetch(`${SHEETDB}/search?email=${encodeURIComponent(email)}`);
+    const rows     = await res.json();
 
     if (!Array.isArray(rows) || rows.length === 0) {
       setMsg('loginMsg', '❌ Email non trovata. Registrati prima.', 'error');
-      btn.classList.remove('btn-loading');
+      btn.disabled = false;
       btn.textContent = '🔑 Accedi';
       return;
     }
@@ -561,50 +527,91 @@ async function handleLogin() {
     const user = rows[0];
     if (user.password !== hashedPw) {
       setMsg('loginMsg', '❌ Password errata.', 'error');
-      btn.classList.remove('btn-loading');
+      btn.disabled = false;
       btn.textContent = '🔑 Accedi';
       return;
     }
 
     // Login OK
     currentUser = {
-      nome:             user.nome,
-      cognome:          user.cognome || '',
-      email:            user.email,
-      telefono:         user.telefono || '',
-      codice_fedelta:   user.codice_fedelta || ''
+      id:           user.id || '',
+      nome:         user.nome || '',
+      cognome:      user.cognome || '',
+      email:        user.email,
+      telefono:     user.telefono || '',
+      sconto_usato: user.sconto_usato || 'false'
     };
-    updateAuthButton();
-    setMsg('loginMsg', '✅ Benvenuto/a ' + currentUser.nome + '!', 'success');
 
-    // Pre-compila i campi del checkout con i dati utente
-    setTimeout(() => {
-      if (document.getElementById('firstName')) document.getElementById('firstName').value = currentUser.nome;
-      if (document.getElementById('lastName'))  document.getElementById('lastName').value  = currentUser.cognome;
-      if (document.getElementById('email'))     document.getElementById('email').value     = currentUser.email;
-      if (document.getElementById('phone'))     document.getElementById('phone').value     = currentUser.telefono;
-      showLoggedPanel();
-    }, 900);
+    updateAuthButton();
+    prefillCheckout();
+    setMsg('loginMsg', '✅ Bentornato/a ' + currentUser.nome + '!', 'success');
+    setTimeout(showLoggedPanel, 900);
 
   } catch (err) {
     console.error(err);
     setMsg('loginMsg', '❌ Errore di connessione. Controlla la rete.', 'error');
   }
 
-  btn.classList.remove('btn-loading');
+  btn.disabled = false;
   btn.textContent = '🔑 Accedi';
 }
 
 /* ============================================================
-   LOGOUT
+   AUTH – LOGOUT
 ============================================================ */
 function handleLogout() {
   currentUser = null;
   updateAuthButton();
   closeAuth();
-  // Pulisci i campi checkout
-  ['firstName','lastName','email','phone'].forEach(id => {
+  // Pulisce il checkout
+  ['firstName','lastName','checkPhone','checkEmail'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
 }
+
+/* ============================================================
+   PREFILL CHECKOUT dai dati utente
+============================================================ */
+function prefillCheckout() {
+  if (!currentUser) return;
+  const map = {
+    firstName:  currentUser.nome,
+    lastName:   currentUser.cognome,
+    checkPhone: currentUser.telefono,
+    checkEmail: currentUser.email
+  };
+  Object.entries(map).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (el && val) el.value = val;
+  });
+}
+
+/* ============================================================
+   INIT
+============================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+  renderMenu('classiche');
+
+  document.getElementById('heroOrderBtn').addEventListener('click', () => {
+    document.getElementById('menu').scrollIntoView({ behavior: 'smooth' });
+  });
+
+  document.getElementById('cartBtn').addEventListener('click', openCart);
+
+  // Sticky bar: mostra/nascondi in base all'hero
+  const heroObserver = new IntersectionObserver(([entry]) => {
+    const bar = document.getElementById('stickyBar');
+    if (!entry.isIntersecting && getCartCount() > 0) {
+      bar.classList.add('visible');
+    } else {
+      bar.classList.remove('visible');
+    }
+  }, { threshold: 0.1 });
+  heroObserver.observe(document.querySelector('.hero'));
+
+  // Popup sconto dopo 8 secondi se carrello vuoto
+  setTimeout(() => {
+    if (!popupShown && getCartCount() === 0) showPopup();
+  }, 8000);
+});
