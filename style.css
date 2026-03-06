@@ -662,16 +662,18 @@ footer { background: var(--deep); border-top: 1px solid rgba(255,255,255,0.06); 
   background: rgba(232, 76, 12, 0.12);
   color: var(--ember-light);
   border: 1.5px solid rgba(232, 76, 12, 0.25);
-  border-radius: 50%;
-  width: 36px;
-  height: 36px;
-  font-size: 1rem;
+  border-radius: 50px;
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
   display: none;
   align-items: center;
   justify-content: center;
+  letter-spacing: 0.03em;
   transition: background 0.2s, transform 0.15s;
   cursor: pointer;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 .btn-logout:hover  { background: rgba(232, 76, 12, 0.22); }
 .btn-logout:active { transform: scale(0.92); }

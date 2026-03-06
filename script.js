@@ -304,7 +304,7 @@ function showStickyBar() {
    POPUP SCONTO
 ============================================================ */
 function showPopup() {
-  if (popupShown) return;
+  if (popupShown || currentUser) return;
   popupShown = true;
   document.getElementById('popupOverlay').classList.add('open');
 }
