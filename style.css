@@ -24,7 +24,13 @@
    RESET & BASE
 =========================== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; font-size: 16px; }
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+  scrollbar-width: none;        /* Firefox */
+  -ms-overflow-style: none;     /* IE/Edge */
+}
+html::-webkit-scrollbar { display: none; } /* Chrome/Safari */
 body {
   background: var(--coal);
   color: var(--cream);
