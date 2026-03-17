@@ -5,28 +5,42 @@
 ============================================================ */
 
 const SHEETDB        = 'https://sheetdb.io/api/v1/ru78o5h25a0cx';
+const SHEETDB_ORDERS = 'https://sheetdb.io/api/v1/dknnwb5fpszzz';
 
 /* ============================================================
-   CONFIG – offuscato (XOR)
-   Non modificare manualmente
+   PAYPAL CONFIG – IMPORTANTE: INSERISCI IL TUO CLIENT ID
 ============================================================ */
-const _x = [51,56,51,33,11,2,55,31,5,10,39,39,113,70,107,127,22,25,17,50,27,15,52,53,26,83,12,41,113,99,69,111,1,29,52,20,24,15,88,59,43,14,2,26,2,64,109,126,36,55,80,84,31,0,7,67,12,87,43,59,117,125,5,2,66,90,25,49,10,30,59,62,14,45,53,54,115,100,1,83];
-const _k = 'roccodarocco2025';
-function _d(a,k){return a.map((v,i)=>String.fromCharCode(v^k.charCodeAt(i%k.length))).join('');}
+// Sostituisci con il tuo Client ID da PayPal Developer Dashboard
+// https://developer.paypal.com/dashboard/apps/sandbox
+const PAYPAL_CLIENT_ID = 'AWPBdfVmjiDHCvYJdvrQtkUGu0oFCSwZsrWwwk9IDmau0p_KVX37pdf1c4HTGM7705zRezZLaNVYAT3f';
 
-/** Carica lo SDK PayPal dinamicamente (Client ID offuscato) */
+/* ============================================================
+   Carica lo SDK PayPal dinamicamente
+============================================================ */
 function loadPayPalSDK() {
   return new Promise((resolve, reject) => {
-    if (typeof paypal !== 'undefined') { resolve(); return; }
-    const s = document.createElement('script');
-    s.src = 'https://www.paypal.com/sdk/js?client-id=' + _d(_x,_k) + '&currency=EUR&locale=it_IT';
-    s.onload  = resolve;
-    s.onerror = reject;
-    document.head.appendChild(s);
+    // Se lo SDK è già caricato, risolvi subito
+    if (typeof paypal !== 'undefined') {
+      resolve();
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = `https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=EUR&locale=it_IT`;
+    
+    script.onload = () => {
+      console.log('[PayPal SDK] Caricato con successo');
+      resolve();
+    };
+    
+    script.onerror = (err) => {
+      console.error('[PayPal SDK] Errore durante il caricamento:', err);
+      reject(new Error('Impossibile caricare PayPal SDK. Controlla il Client ID.'));
+    };
+
+    document.head.appendChild(script);
   });
 }
-
-const SHEETDB_ORDERS = 'https://sheetdb.io/api/v1/dknnwb5fpszzz';
 
 /* ============================================================
    MENU DATA
@@ -69,7 +83,8 @@ let cart            = {};
 let deliveryMode    = 'delivery';
 let discountApplied = false;
 let popupShown      = false;
-let currentUser     = null;   // oggetto utente loggato
+let currentUser     = null;
+let paypalButtonsRendered = false; // Flag per evitare render duplicati
 
 /* ---- Persistenza sessione via localStorage ---- */
 function saveSession(user) {
@@ -247,7 +262,7 @@ function setMode(mode) {
 }
 
 /* ============================================================
-   PAYMENT
+   PAYMENT – FIX PRINCIPALE
 ============================================================ */
 function selectPayment(btn) {
   document.querySelectorAll('#paymentMethods .pay-pill').forEach(b => b.classList.remove('selected'));
@@ -260,10 +275,29 @@ function selectPayment(btn) {
   if (isPayPal) {
     if (btnConferma)  btnConferma.style.display  = 'none';
     if (ppContainer)  ppContainer.style.display  = 'block';
-    // Render PayPal buttons se non ancora montati
-    if (ppContainer && ppContainer.children.length === 0) {
-      loadPayPalSDK().then(() => renderPayPalButtons());
-    }
+    
+    // Ripulisci il container prima di caricare nuovi bottoni
+    if (ppContainer) ppContainer.innerHTML = '';
+    paypalButtonsRendered = false;
+    
+    // Carica PayPal SDK e render bottoni
+    loadPayPalSDK()
+      .then(() => {
+        console.log('[PayPal] SDK caricato, rendering bottoni...');
+        renderPayPalButtons();
+      })
+      .catch((err) => {
+        console.error('[PayPal] Errore caricamento SDK:', err);
+        if (ppContainer) {
+          ppContainer.innerHTML = `
+            <div style="background:rgba(232,76,12,0.1);border:1px solid rgba(232,76,12,0.3);
+                        border-radius:12px;padding:14px;font-size:0.8rem;color:var(--ember-light);
+                        text-align:center;">
+              <strong>❌ Errore PayPal</strong><br>
+              ${err.message || 'Impossibile caricare PayPal'}
+            </div>`;
+        }
+      });
   } else {
     if (btnConferma)  btnConferma.style.display  = 'block';
     if (ppContainer)  ppContainer.style.display  = 'none';
@@ -394,24 +428,20 @@ function claimDiscount() {
 /* ============================================================
    PLACE ORDER
 ============================================================ */
-/* ---- Helper: metodo di pagamento selezionato ---- */
+/** Helper: metodo di pagamento selezionato */
 function getSelectedPayment() {
   const selected = document.querySelector('#paymentMethods .pay-pill.selected');
   return selected ? (selected.dataset.method || selected.textContent.trim()) : 'Non specificato';
 }
 
-/* ---- Helper: riepilogo articoli come stringa leggibile ---- */
+/** Helper: riepilogo articoli come stringa leggibile */
 function cartItemsToString() {
   return Object.values(cart)
     .map(i => `${i.name} x${i.qty} (€${(i.price * i.qty).toFixed(2)})`)
     .join(' | ');
 }
 
-/* ============================================================
-   PAYPAL – render bottoni SDK
-============================================================ */
-
-/** Valida i campi del form e ritorna i dati, oppure null se invalidi */
+/** Valida i campi del form */
 function validateOrderForm() {
   if (!currentUser) { closeCart(); openAuth(); return null; }
   if (getCartCount() === 0) { alert('Aggiungi almeno un articolo al carrello.'); return null; }
@@ -499,7 +529,7 @@ async function saveOrderToDb(paymentMethod, transactionId = '') {
   document.body.insertAdjacentHTML('beforeend', `
     <div id="orderConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:900;display:flex;align-items:center;justify-content:center;padding:24px;">
       <div style="background:#1e160a;border-radius:24px;padding:36px 24px;text-align:center;max-width:380px;width:100%;">
-        <span style="font-size:4rem;display:block;margin-bottom:16px;">${transactionId ? '✅' : '✅'}</span>
+        <span style="font-size:4rem;display:block;margin-bottom:16px;">✅</span>
         <h2 style="font-family:var(--font-display);font-size:1.7rem;font-weight:900;color:var(--mozzarella);margin-bottom:10px;">Ordine Confermato!</h2>
         <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:14px;margin-bottom:16px;">
           <p style="color:var(--gold);font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;">Numero ordine</p>
@@ -525,83 +555,112 @@ async function saveOrderToDb(paymentMethod, transactionId = '') {
   return true;
 }
 
+/* ============================================================
+   PAYPAL – RENDER BOTTONI (FIXED)
+============================================================ */
 function renderPayPalButtons() {
   const container = document.getElementById('paypalButtonContainer');
-  if (!container) return;
-  loadPayPalSDK().then(() => {
-    if (container.children.length > 0) return; // già montato
+  if (!container) {
+    console.error('[PayPal] Container non trovato!');
+    return;
+  }
 
-  paypal.Buttons({
-    style: {
-      layout:  'vertical',
-      color:   'gold',
-      shape:   'pill',
-      label:   'paypal',
-      height:  48
-    },
+  // Evita render duplicati
+  if (paypalButtonsRendered) {
+    console.log('[PayPal] Bottoni già renderizzati');
+    return;
+  }
 
-    // Crea l'ordine PayPal con il totale reale
-    createOrder: (data, actions) => {
-      const form = validateOrderForm();
-      if (!form) return Promise.reject(new Error('Form non valido'));
-      const total = getCartTotal();
-      // Minimo assoluto richiesto da PayPal Orders v2
-      return actions.order.create({
-        purchase_units: [{
-          amount: {
-            currency_code: 'EUR',
-            value: total.toFixed(2)
-          }
-        }]
-      });
-    },
+  // Controlla che paypal sia disponibile
+  if (typeof paypal === 'undefined') {
+    console.error('[PayPal] SDK non caricato correttamente');
+    container.innerHTML = '<p style="color:var(--ember);font-size:0.8rem;text-align:center;">Errore: SDK PayPal non disponibile</p>';
+    return;
+  }
 
-    // Pagamento approvato → cattura e salva ordine
-    onApprove: async (data, actions) => {
-      const details = await actions.order.capture();
-      const txId    = details.id;
-      await saveOrderToDb('PayPal', txId);
-    },
+  try {
+    paypal.Buttons({
+      style: {
+        layout:  'vertical',
+        color:   'gold',
+        shape:   'pill',
+        label:   'paypal',
+        height:  48
+      },
 
-    // Utente annulla
-    onCancel: () => {
-      console.log('PayPal: pagamento annullato');
-    },
+      // Crea l'ordine PayPal con il totale reale
+      createOrder: (data, actions) => {
+        console.log('[PayPal] Creating order...');
+        const form = validateOrderForm();
+        if (!form) {
+          console.error('[PayPal] Form validation failed');
+          return Promise.reject(new Error('Form non valido'));
+        }
+        const total = getCartTotal();
+        console.log('[PayPal] Order total:', total);
 
-    // Errore PayPal – log dettagliato
-    onError: (err) => {
-      console.error('=== PAYPAL ERROR ===');
-      console.error(err);
-      try { console.error(JSON.stringify(err, null, 2)); } catch(e) {}
+        return actions.order.create({
+          purchase_units: [{
+            amount: {
+              currency_code: 'EUR',
+              value: total.toFixed(2)
+            }
+          }]
+        });
+      },
 
-      // Mostra dettaglio all'utente invece del messaggio generico
-      const msg = err && err.message ? err.message : String(err);
-      const container = document.getElementById('paypalButtonContainer');
-      if (container) {
+      // Pagamento approvato → cattura e salva ordine
+      onApprove: async (data, actions) => {
+        console.log('[PayPal] Order approved:', data);
+        try {
+          const details = await actions.order.capture();
+          console.log('[PayPal] Order captured:', details);
+          const txId = details.id;
+          await saveOrderToDb('PayPal', txId);
+        } catch (err) {
+          console.error('[PayPal] Capture error:', err);
+          throw err;
+        }
+      },
+
+      // Utente annulla
+      onCancel: () => {
+        console.log('[PayPal] Pagamento annullato dall\'utente');
+        alert('Pagamento annullato. Riprova quando sei pronto.');
+      },
+
+      // Errore PayPal
+      onError: (err) => {
+        console.error('[PayPal] ===== ERROR =====');
+        console.error(err);
+        console.error(JSON.stringify(err, null, 2));
+
+        const msg = err && err.message ? err.message : String(err);
         container.innerHTML = `
           <div style="background:rgba(232,76,12,0.1);border:1px solid rgba(232,76,12,0.3);
                       border-radius:12px;padding:14px;font-size:0.8rem;color:var(--ember-light);
                       text-align:center;margin-bottom:8px;">
-            <strong>Errore PayPal:</strong><br>
+            <strong>❌ Errore PayPal</strong><br>
             <span style="font-size:0.72rem;color:var(--ash);">${msg}</span><br><br>
-            <button onclick="document.getElementById('paypalButtonContainer').innerHTML='';renderPayPalButtons();"
+            <button onclick="selectPayment(document.querySelector('[data-method=PayPal]'));"
               style="background:var(--ember);color:#fff;border-radius:50px;padding:8px 20px;
                      font-size:0.8rem;font-weight:700;border:none;cursor:pointer;">
               Riprova
             </button>
           </div>`;
+        paypalButtonsRendered = false;
       }
-    }
-  }).render('#paypalButtonContainer');
-  }).catch((sdkErr) => {
-    console.error('PayPal SDK load error:', sdkErr);
-    const container = document.getElementById('paypalButtonContainer');
-    if (container) {
-      container.innerHTML = '<p style="color:var(--ember);font-size:0.8rem;text-align:center;">Errore caricamento PayPal SDK. Controlla la console.</p>';
-    }
-  });
+    }).render('#paypalButtonContainer');
+
+    paypalButtonsRendered = true;
+    console.log('[PayPal] Bottoni renderizzati con successo');
+  } catch (err) {
+    console.error('[PayPal] Render error:', err);
+    container.innerHTML = `<p style="color:var(--ember);font-size:0.8rem;text-align:center;">Errore durante il rendering di PayPal</p>`;
+  }
 }
 
+/** Ordine via metodo standard (Carta / Contanti / Apple Pay) */
 async function placeOrder() {
   // 1. GATE: solo utenti loggati
   if (!currentUser) {
@@ -646,7 +705,7 @@ async function placeOrder() {
   const total   = getCartTotal();
 
   try {
-    // 4. Salva ordine su SheetDB foglio "Ordini"
+    // 4. Salva ordine su SheetDB
     const orderPayload = {
       data: [{
         id_ordine:    orderId,
@@ -674,7 +733,7 @@ async function placeOrder() {
     });
     if (!orderRes.ok) throw new Error('Errore salvataggio ordine');
 
-    // 5. Se coupon usato → segna sconto_usato su foglio Utenti
+    // 5. Se coupon usato → segna sconto_usato
     if (discountApplied) {
       try {
         await fetch(`${SHEETDB}/uid/${encodeURIComponent(currentUser.uid)}`, {
@@ -704,19 +763,10 @@ async function placeOrder() {
           <p style="color:var(--ash);font-size:0.85rem;line-height:1.6;margin-bottom:6px;">
             Ciao <strong style="color:var(--cream)">${firstName}</strong>! Il tuo ordine è stato ricevuto.
           </p>
-          <p style="color:var(--ash);font-size:0.82rem;margin-bottom:6px;">
-            📱 SMS di conferma al <strong style="color:var(--cream)">${phone}</strong>
-          </p>
-          <p style="color:var(--ash);font-size:0.82rem;margin-bottom:4px;">
-            💳 Pagamento: <strong style="color:var(--cream)">${payment}</strong>
-          </p>
-          <p style="color:var(--ash);font-size:0.82rem;margin-bottom:16px;">
-            ${deliveryMode === 'delivery'
-              ? '🛵 Consegna a: <strong style="color:var(--cream)">' + address + '</strong>'
-              : '🏪 Ritiro: <strong style="color:var(--cream)">' + orario + '</strong>'}
-          </p>
-          <p style="color:var(--gold);font-size:0.9rem;font-weight:700;margin-bottom:20px;">
-            ⏱ Tempo stimato: ${deliveryMode === 'pickup' ? '15–20 min' : '25–35 min'}
+          <p style="color:var(--ash);font-size:0.82rem;margin-bottom:6px;">📱 SMS al <strong style="color:var(--cream)">${phone}</strong></p>
+          <p style="color:var(--ash);font-size:0.82rem;margin-bottom:4px;">💳 Pagamento: <strong style="color:var(--cream)">${payment}</strong></p>
+          <p style="color:var(--gold);font-size:0.9rem;font-weight:700;margin:12px 0 20px;">
+            ⏱ ${deliveryMode === 'pickup' ? '15–20 min' : '25–35 min'}
           </p>
           <button style="background:var(--ember);color:#fff;border-radius:50px;padding:14px 32px;font-weight:700;font-size:0.95rem;width:100%;cursor:pointer;border:none;"
             onclick="document.getElementById('orderConfirm').remove()">Perfetto! 🍕</button>
@@ -727,109 +777,16 @@ async function placeOrder() {
     discountApplied = false;
     updateCartUI();
 
-  } catch(err) {
-    console.error(err);
+  } catch (err) {
+    console.error('[Order] Error:', err);
+    alert('❌ Errore durante l\'invio dell\'ordine. Controlla la connessione.');
     btn.disabled = false;
     btn.textContent = '🍕 Conferma Ordine';
-    alert("❌ Errore durante l'invio dell'ordine. Controlla la connessione e riprova.");
   }
 }
 
 /* ============================================================
-   AUTH – Apri / Chiudi drawer
-============================================================ */
-function openAuth() {
-  closeCart();
-  if (currentUser) {
-    showLoggedPanel();
-  } else {
-    switchTab('login');
-  }
-  document.getElementById('authDrawer').classList.add('open');
-  document.getElementById('overlay').classList.add('open');
-  document.getElementById('overlay').onclick = closeAuth;
-  document.body.style.overflow = 'hidden';
-}
-
-function closeAuth() {
-  document.getElementById('authDrawer').classList.remove('open');
-  document.getElementById('overlay').classList.remove('open');
-  document.body.style.overflow = '';
-}
-
-/* ============================================================
-   AUTH – Switch tab
-============================================================ */
-function switchTab(tab) {
-  document.getElementById('panelLogin').style.display    = tab === 'login'    ? 'block' : 'none';
-  document.getElementById('panelRegister').style.display = tab === 'register' ? 'block' : 'none';
-  document.getElementById('panelLogged').style.display   = 'none';
-  document.getElementById('authTabs').style.display      = 'flex';
-  document.getElementById('tabLogin').classList.toggle('active',    tab === 'login');
-  document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
-  clearAuthMsgs();
-}
-
-function clearAuthMsgs() {
-  ['loginMsg','registerMsg'].forEach(id => {
-    const el = document.getElementById(id);
-    el.textContent = '';
-    el.className = 'auth-msg';
-  });
-}
-
-function setMsg(id, text, type) {
-  const el = document.getElementById(id);
-  el.textContent = text;
-  el.className = 'auth-msg ' + type;
-}
-
-/* ============================================================
-   AUTH – Panel loggato
-============================================================ */
-function showLoggedPanel() {
-  document.getElementById('panelLogin').style.display    = 'none';
-  document.getElementById('panelRegister').style.display = 'none';
-  document.getElementById('panelLogged').style.display   = 'block';
-  document.getElementById('authTabs').style.display      = 'none';
-  if (currentUser) {
-    document.getElementById('loggedName').textContent  = currentUser.nome + (currentUser.cognome ? ' ' + currentUser.cognome : '');
-    document.getElementById('loggedEmail').textContent = '✉️ ' + currentUser.email;
-    document.getElementById('loggedPhone').textContent = currentUser.telefono ? '📱 ' + currentUser.telefono : '';
-    updateScontoStatus();
-  }
-}
-
-function updateScontoStatus() {
-  const el = document.getElementById('scontoStatus');
-  if (!el) return;
-  if (currentUser && currentUser.sconto_usato?.toLowerCase() === 'true') {
-    el.textContent = '✓ Sconto già utilizzato';
-    el.style.color = 'var(--ash)';
-  } else {
-    el.textContent = '🎁 Non ancora utilizzato — usalo al prossimo ordine!';
-    el.style.color = 'var(--gold)';
-  }
-}
-
-function updateAuthButton() {
-  const btn     = document.getElementById('authBtn');
-  const label   = document.getElementById('authBtnLabel');
-  const logoutBtn = document.getElementById('logoutBtn');
-  if (currentUser) {
-    label.textContent = '👤 ' + currentUser.nome;
-    btn.classList.add('logged-in');
-    if (logoutBtn) logoutBtn.style.display = 'flex';
-  } else {
-    label.textContent = '👤 Accedi';
-    btn.classList.remove('logged-in');
-    if (logoutBtn) logoutBtn.style.display = 'none';
-  }
-}
-
-/* ============================================================
-   AUTH – REGISTRAZIONE
-   Campi inviati: id | email | password | nome | cognome | telefono | data_registrazione | sconto_usato
+   AUTH – REGISTER
 ============================================================ */
 async function handleRegister() {
   const nome     = document.getElementById('regNome').value.trim();
@@ -896,11 +853,11 @@ async function handleRegister() {
       saveSession(currentUser);
       updateAuthButton();
       prefillCheckout();
-      updateCartUI();   // aggiorna login gate nel carrello
+      updateCartUI();
       setMsg('registerMsg', '✅ Benvenuto/a ' + nome + '! Account creato.', 'success');
       setTimeout(showLoggedPanel, 1200);
     } else {
-    alert("❌ Errore durante l'invio dell'ordine. Controlla la connessione e riprova.");
+      alert("❌ Errore durante la registrazione. Controlla la connessione e riprova.");
     }
   } catch (err) {
     console.error(err);
@@ -948,7 +905,6 @@ async function handleLogin() {
     }
 
     // Login OK
-    console.log('[AUTH] user da SheetDB:', user);  // debug
     currentUser = {
       uid:          user.uid || '',
       nome:         user.nome || '',
@@ -961,7 +917,7 @@ async function handleLogin() {
     saveSession(currentUser);
     updateAuthButton();
     prefillCheckout();
-    updateCartUI();   // aggiorna login gate nel carrello
+    updateCartUI();
     setMsg('loginMsg', '✅ Bentornato/a ' + currentUser.nome + '!', 'success');
     setTimeout(showLoggedPanel, 900);
 
@@ -990,7 +946,7 @@ function handleLogout() {
 }
 
 /* ============================================================
-   PREFILL CHECKOUT dai dati utente
+   PREFILL CHECKOUT
 ============================================================ */
 function prefillCheckout() {
   if (!currentUser) return;
@@ -1004,6 +960,68 @@ function prefillCheckout() {
     const el = document.getElementById(id);
     if (el && val) el.value = val;
   });
+}
+
+/* ============================================================
+   AUTH UI HELPERS
+============================================================ */
+function setMsg(id, msg, type) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = msg;
+  el.className = 'auth-msg ' + type;
+}
+
+function openAuth() {
+  closeCart();
+  document.getElementById('authDrawer').classList.add('open');
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('overlay').onclick = closeAuth;
+}
+
+function closeAuth() {
+  document.getElementById('authDrawer').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
+}
+
+function switchTab(tab) {
+  document.getElementById('panelLogin').style.display    = tab === 'login' ? 'block' : 'none';
+  document.getElementById('panelRegister').style.display = tab === 'register' ? 'block' : 'none';
+  document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
+  document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
+}
+
+function updateAuthButton() {
+  const btn = document.getElementById('authBtn');
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (currentUser) {
+    btn.style.display = 'none';
+    logoutBtn.style.display = 'block';
+    document.getElementById('authBtnLabel').textContent = `👤 ${currentUser.nome}`;
+  } else {
+    btn.style.display = 'block';
+    logoutBtn.style.display = 'none';
+    document.getElementById('authBtnLabel').textContent = '👤 Accedi';
+  }
+}
+
+function showLoggedPanel() {
+  document.getElementById('panelLogin').style.display    = 'none';
+  document.getElementById('panelRegister').style.display = 'none';
+  document.getElementById('panelLogged').style.display   = 'block';
+  document.getElementById('loggedName').textContent      = currentUser.nome;
+  document.getElementById('loggedEmail').textContent     = currentUser.email;
+  document.getElementById('loggedPhone').textContent     = currentUser.telefono;
+  updateScontoStatus();
+}
+
+function updateScontoStatus() {
+  const msg = document.getElementById('scontoStatus');
+  if (currentUser.sconto_usato === 'true') {
+    msg.textContent = '✓ Codice usato';
+  } else {
+    msg.innerHTML = '<span style="color:var(--gold);font-weight:700;">✓ Disponibile – Applica al checkout!</span>';
+  }
 }
 
 /* ============================================================
